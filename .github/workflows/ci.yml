@@ -1,0 +1,32 @@
+name: テスト
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - name: 型チェック
+        run: npm run typecheck
+      - name: ポイント計算ルールのテスト
+        run: npm test
+      - name: セキュリティルールのテスト（Firebase エミュレーター）
+        run: npm run test:rules
+      - run: npx playwright install --with-deps chromium
+      - name: 画面の動作テスト（お試しモード）
+        run: npm run test:e2e
+      - name: 画面の動作テスト（親と子の2台・Firebase エミュレーター）
+        run: npm run test:e2e:firebase
