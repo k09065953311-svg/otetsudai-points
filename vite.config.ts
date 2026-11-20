@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["icon.svg"],
+      includeAssets: ["icon.svg", "art/*.webp"],
       manifest: {
         name: "おうちギルド",
         short_name: "おうちギルド",

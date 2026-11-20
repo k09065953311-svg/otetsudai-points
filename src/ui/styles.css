@@ -199,3 +199,40 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .artset .slot .t{font-weight:700;font-size:13px}
 .artset .slot .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .who ~ .title{min-height:calc(100dvh - 190px)}
+
+/* ---- いただいた絵（public/art） ---- */
+.title-hero{position:absolute;inset:0 0 auto 0;height:52%;z-index:-2;background:url(/art/guild-hall.webp) 50% 45%/cover no-repeat;
+  -webkit-mask-image:linear-gradient(180deg,#000 55%,transparent);mask-image:linear-gradient(180deg,#000 55%,transparent)}
+.title-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,26,46,.15),rgba(20,26,46,.35))}
+.title[data-time="dusk"] .title-hero{filter:saturate(1.1) sepia(.25) brightness(.9)}
+.title[data-time="dusk"] .title-hero::after{background:linear-gradient(180deg,rgba(255,120,60,.18),rgba(60,20,40,.45))}
+.title[data-time="night"] .title-hero{filter:brightness(.62) saturate(.85) hue-rotate(-8deg)}
+.title[data-time="night"] .title-hero::after{background:linear-gradient(180deg,rgba(10,18,60,.55),rgba(20,26,46,.35))}
+.title-logo{margin-top:clamp(60px,14dvh,130px)}
+
+/* 扉が開く演出 */
+.door{position:fixed;inset:0;z-index:50;perspective:1200px;pointer-events:none;background:transparent;animation:door-fade 1.3s ease-in forwards}
+.door-half{position:absolute;top:0;bottom:0;width:50%;overflow:hidden;transform-style:preserve-3d}
+.door-l{left:0;transform-origin:0 50%;animation:door-l 1.1s .15s cubic-bezier(.5,0,.2,1) forwards}
+.door-r{right:0;transform-origin:100% 50%;animation:door-r 1.1s .15s cubic-bezier(.5,0,.2,1) forwards}
+.door-half i{position:absolute;top:0;height:100%;--dw:max(100vw,150dvh);width:var(--dw);background:#2a1d10 url(/art/guild-door.webp) 0 50%/100% auto no-repeat}
+.door-l i{left:calc(50vw - .529 * var(--dw))}
+.door-r i{left:calc(.529 * var(--dw) * -1 + 0px)}
+@keyframes door-l{to{transform:rotateY(80deg);filter:brightness(.4)}}
+@keyframes door-r{to{transform:rotateY(-80deg);filter:brightness(.4)}}
+@keyframes door-fade{0%,75%{opacity:1}to{opacity:0}}
+@media (prefers-reduced-motion:reduce){.door{display:none}}
+
+/* 依頼掲示板の見出し */
+.board-hero{position:relative;height:150px;border-radius:16px;overflow:hidden;border:1px solid var(--brass-dim);display:grid;align-content:end;padding:12px 14px;
+  background:linear-gradient(180deg,transparent 35%,rgba(12,15,29,.85)),url(/art/quest-board.webp) 50% 40%/cover no-repeat}
+.board-hero h2{margin:0;font-family:var(--display);font-weight:400;font-size:24px;color:#fff3c9;text-shadow:0 2px 0 #3a2a14,0 0 12px rgba(0,0,0,.6)}
+.board-hero span{font-size:12px;color:var(--paper)}
+
+/* 緊急クエストの見出し */
+.urgent-banner{display:block;width:calc(100% + 12px);height:auto;margin:-6px -6px 0;border-radius:10px;
+  -webkit-mask-image:radial-gradient(120% 100% at 50% 50%,#000 70%,transparent);mask-image:radial-gradient(120% 100% at 50% 50%,#000 70%,transparent)}
+
+/* 承認した人 */
+.approver{grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--brass);margin-top:2px}
+.approver img{width:20px;height:20px;border-radius:50%;object-fit:cover;object-position:50% 20%;border:1px solid var(--brass-dim)}

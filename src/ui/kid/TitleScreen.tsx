@@ -40,9 +40,12 @@ export function TitleScreen({ state, me, now, onStart }: { state: FamilyState; m
     return () => window.removeEventListener("keydown", onKey);
   }, [onStart]);
   const art = state.art ?? null;
+  const hour = new Date(now).getHours();
+  const time = hour >= 18 || hour < 5 ? "night" : hour >= 16 ? "dusk" : "day";
 
   return (
-    <section className="title" aria-label="タイトル画面" onClick={onStart}>
+    <section className="title" data-time={time} aria-label="タイトル画面" onClick={onStart}>
+      <div className="title-hero" aria-hidden="true" />
       <div className="title-lamps" aria-hidden="true" />
       <div className="title-dust" aria-hidden="true">
         {Array.from({ length: 10 }, (_, i) => (
@@ -51,7 +54,6 @@ export function TitleScreen({ state, me, now, onStart }: { state: FamilyState; m
       </div>
 
       <header className="title-logo">
-        <img src="/icon.svg" alt="" />
         <span className="title-kicker">ADVENTURERS' GUILD</span>
         <h1>おうちギルド</h1>
         <span className="title-sub">― 冒険者ギルド本部 ―</span>

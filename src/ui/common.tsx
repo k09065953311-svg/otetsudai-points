@@ -189,7 +189,8 @@ export function UrgentPanel({ urgent, state, now, action }: { urgent: UrgentQues
   const expired = urgent.deadline <= now;
   return (
     <section className="urgent" aria-label="緊急クエスト">
-      <span className="tag">緊急クエスト　発令：{issuer?.name ?? "親"}</span>
+      <img className="urgent-banner" src="/art/urgent-title.webp" alt="緊急クエスト" width={900} height={300} />
+      <span className="tag">発令：{issuer?.name ?? "親"}</span>
       <h3>{urgent.title}</h3>
       <div className="row">
         <span className="timer">
@@ -257,6 +258,7 @@ export function EntryRow({
           {e.kind === "shop" ? "交換" : e.kind === "bonus" ? "ボーナス" : "クエスト"}・{timeLabel(e.createdAt, now)}
           {e.comment ? `・「${e.comment}」` : ""}
         </div>
+        {e.status === "ok" && e.kind !== "bonus" && e.decidedBy && <Approver state={state} id={e.decidedBy} />}
       </div>
       <div style={{ display: "grid", justifyItems: "end", gap: 2 }}>
         <span className="v" style={{ color: minus ? "var(--ink-dim)" : "var(--brass)" }}>
@@ -266,6 +268,19 @@ export function EntryRow({
         <span className={`pill ${pill[0]}`}>{pill[1]}</span>
         {action}
       </div>
+    </div>
+  );
+}
+
+/** 冒険の記録に出す「承認したのは誰か」。キャラ画像があれば顔を添える */
+function Approver({ state, id }: { state: FamilyState; id: string }) {
+  const slot = id === "papa" ? "master" : id === "mama" ? "okami" : null;
+  if (!slot) return null;
+  const src = state.art?.[slot] ?? null;
+  return (
+    <div className="approver">
+      {src && <img src={src} alt="" />}
+      {slot === "master" ? "ギルドマスター" : "ギルドの女将"}が承認
     </div>
   );
 }
