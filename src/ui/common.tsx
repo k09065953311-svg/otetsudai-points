@@ -280,7 +280,7 @@ function Approver({ state, id }: { state: FamilyState; id: string }) {
   return (
     <div className="approver">
       {src && <img src={src} alt="" />}
-      {slot === "master" ? "ギルドマスター" : "ギルドの女将"}が承認
+      {slot === "master" ? "ギルドマスター" : "ギルドの受付"}が承認
     </div>
   );
 }

@@ -4,7 +4,7 @@ export type ArtSlot = keyof GuildArt;
 
 export const ART_ROLES: Record<ArtSlot, { title: string; parent: string }> = {
   master: { title: "ギルドマスター", parent: "papa" },
-  okami: { title: "ギルドの女将", parent: "mama" }
+  okami: { title: "ギルドの受付", parent: "mama" }
 };
 
 /** アーチ型の額縁に入ったキャラ。画像が未設定なら、それぞれの役のシルエットを出す */
@@ -49,7 +49,7 @@ function MasterShadow() {
 
 function OkamiShadow() {
   return (
-    <svg viewBox="0 0 120 160" role="img" aria-label="ギルドの女将（画像未設定）">
+    <svg viewBox="0 0 120 160" role="img" aria-label="ギルドの受付（画像未設定）">
       <defs>
         <radialGradient id="po-glow" cx="50%" cy="38%" r="60%">
           <stop offset="0" stopColor="#ff9a6a" stopOpacity=".25" />
