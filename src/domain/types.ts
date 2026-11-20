@@ -75,10 +75,19 @@ export interface Entry {
   revokedAt?: number | null;
 }
 
+/** タイトル画面のキャラ画像（data URL）。未設定ならシルエットを表示する */
+export interface GuildArt {
+  /** ギルドマスター（父） */
+  master: string | null;
+  /** ギルドの女将（母） */
+  okami: string | null;
+}
+
 export interface FamilyState {
   profiles: Profile[];
   quests: Quest[];
   rewards: Reward[];
   entries: Entry[];
   urgent: UrgentQuest | null;
+  art?: GuildArt | null;
 }

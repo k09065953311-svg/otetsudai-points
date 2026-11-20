@@ -149,3 +149,53 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .done-mark{font-size:12px;color:var(--good);font-weight:800}
 .quest .why{grid-column:1/-1;margin-top:8px;text-align:center;font-size:12px;opacity:.7}
 .urgent .closed{font-size:13px;color:var(--ink-dim)}
+
+/* ---- タイトル画面（子ども）: 夜のギルド本部。ランプの灯り・舞うほこり・額縁の2人 ---- */
+.title{position:relative;isolation:isolate;overflow:hidden;min-height:calc(100dvh - 40px);border-radius:20px;border:1px solid var(--brass-dim);
+  background:
+    linear-gradient(180deg,transparent 72%,#0c0f1d 72%,#121628 100%),
+    repeating-linear-gradient(90deg,transparent 0 58px,rgba(0,0,0,.18) 58px 60px),
+    linear-gradient(180deg,#1a2244,#141a2e 70%);
+  display:flex;flex-direction:column;align-items:center;gap:14px;padding:26px 16px 22px;cursor:pointer;text-align:center}
+.title-lamps{position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(160px 160px at 12% 18%,rgba(255,170,90,.32),transparent 70%),radial-gradient(160px 160px at 88% 18%,rgba(255,170,90,.32),transparent 70%),radial-gradient(260px 200px at 50% 62%,rgba(224,179,84,.16),transparent 70%);
+  animation:flicker 4s ease-in-out infinite}
+@keyframes flicker{0%,100%{opacity:1}45%{opacity:.86}55%{opacity:.95}}
+.title-dust{position:absolute;inset:0;z-index:-1;pointer-events:none}
+.title-dust i{position:absolute;bottom:-8px;width:3px;height:3px;border-radius:50%;background:var(--brass);opacity:0;animation:rise 8s linear infinite}
+@keyframes rise{10%{opacity:.7}90%{opacity:.4}to{transform:translate(18px,-90dvh);opacity:0}}
+.title-logo{display:grid;justify-items:center;gap:2px}
+.title-logo img{width:58px;height:58px;filter:drop-shadow(0 0 12px rgba(224,179,84,.5))}
+.title-kicker{font-size:10px;letter-spacing:.32em;color:var(--brass);margin-top:4px}
+.title-logo h1{margin:0;font-family:var(--display);font-weight:400;font-size:40px;line-height:1.1;letter-spacing:.04em;
+  background:linear-gradient(180deg,#fff3c9 10%,#e0b354 55%,#a8843c 90%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 3px 0 #3a2a14) drop-shadow(0 0 18px rgba(224,179,84,.35))}
+.title-sub{font-size:12px;color:var(--ink-dim);letter-spacing:.2em}
+.title-cast{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:360px;margin-top:4px}
+.cast{margin:0;display:grid;justify-items:center;gap:8px;transition:transform .4s,filter .4s;filter:brightness(.78) saturate(.85)}
+.cast.speaking{transform:translateY(-6px) scale(1.03);filter:none}
+.cast figcaption{font-family:var(--display);font-size:13px;color:var(--paper-ink);background:linear-gradient(180deg,#f7ecd2,#e3cfa2);padding:3px 14px;border-radius:4px;
+  box-shadow:0 2px 0 #7a5a2a;clip-path:polygon(6px 0,calc(100% - 6px) 0,100% 50%,calc(100% - 6px) 100%,6px 100%,0 50%)}
+.portrait{position:relative;aspect-ratio:3/4;width:100%;overflow:hidden;background:#0b1022;
+  border:3px solid var(--brass);border-radius:50% 50% 12px 12px/34% 34% 12px 12px;
+  box-shadow:0 0 0 3px #0c0f1d,0 0 0 5px var(--brass-dim),0 10px 28px rgba(0,0,0,.55),inset 0 0 24px rgba(0,0,0,.6)}
+.portrait img,.portrait svg{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 20%}
+.portrait-sm{width:84px;border-width:2px;box-shadow:0 0 0 2px #0c0f1d,0 0 0 3px var(--brass-dim)}
+.bubble{position:relative;margin:4px 0 0;width:100%;max-width:360px;background:var(--paper);color:var(--paper-ink);border-radius:14px;padding:12px 14px 12px;text-align:left;font-size:14px;font-weight:700;line-height:1.6;
+  box-shadow:0 4px 0 var(--paper-line),0 10px 24px rgba(0,0,0,.4)}
+.bubble b{display:block;font-family:var(--display);font-weight:400;font-size:11px;color:#8a5a1c;letter-spacing:.08em}
+.bubble::before{content:"";position:absolute;top:-10px;width:18px;height:12px;background:var(--paper);clip-path:polygon(50% 0,100% 100%,0 100%)}
+.bubble-master::before{left:22%}
+.bubble-okami::before{right:22%}
+.title-foot{margin-top:auto;display:grid;justify-items:center;gap:10px;width:100%;max-width:360px}
+.title-me{font-size:12px;color:var(--ink-dim)}
+.title-start{width:100%;font-family:var(--display);font-size:18px;letter-spacing:.12em;animation:beckon 2.2s ease-in-out infinite}
+@keyframes beckon{50%{box-shadow:0 0 0 6px rgba(224,179,84,.18),0 0 28px rgba(224,179,84,.45)}}
+@media (prefers-reduced-motion:reduce){.title-lamps,.title-dust i,.title-start{animation:none}.cast{transition:none}}
+
+/* 親の設定：キャラ画像 */
+.artset{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.artset .slot{background:var(--wall-2);border-radius:12px;padding:12px;display:grid;justify-items:center;gap:8px;text-align:center}
+.artset .slot .t{font-weight:700;font-size:13px}
+.artset .slot .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.who ~ .title{min-height:calc(100dvh - 190px)}

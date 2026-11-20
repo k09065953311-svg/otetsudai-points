@@ -2,8 +2,12 @@ import { expect, test, type Page } from "@playwright/test";
 
 // お試しモードで「報告 → 承認 → G が増える → 交換 → 渡す」の一連の流れを、スマホ画面で確かめる
 
+const KIDS = ["ルリ", "レイ", "リツ"];
+
 async function switchTo(page: Page, name: string) {
   await page.getByRole("group", { name: "使う人" }).getByRole("button", { name: new RegExp(name) }).click();
+  // 子どもは開くたびにタイトル画面が出る
+  if (KIDS.includes(name)) await page.getByRole("button", { name: "冒険に出る" }).click();
 }
 
 const gold = (page: Page) => page.locator(".card .gold b");
@@ -103,6 +107,26 @@ test("親がクエストを追加すると子どもの掲示板に出る", async
   await switchTo(page, "リツ");
   await page.getByRole("tab", { name: "依頼掲示板" }).click();
   await expect(page.locator(".quest", { hasText: "玄関の靴をそろえる" })).toContainText("15 G");
+});
+
+test("子どもが開くとギルドのタイトル画面が出て、親が登録したキャラ画像が使われる", async ({ page }) => {
+  await page.getByRole("group", { name: "使う人" }).getByRole("button", { name: /レイ/ }).click();
+  const title = page.getByRole("region", { name: "タイトル画面" });
+  await expect(title).toContainText("おうちギルド");
+  await expect(title.getByRole("img", { name: "ギルドマスター（画像未設定）" })).toBeVisible();
+  await expect(title.getByRole("status")).not.toBeEmpty();
+
+  await switchTo(page, "父");
+  await page.getByRole("tab", { name: "設定" }).click();
+  // 1x1 の PNG を「画像を選ぶ」に渡す
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  await page.getByLabel("ギルドマスターの画像を選ぶ").setInputFiles({ name: "papa.png", mimeType: "image/png", buffer: png });
+  await expect(page.getByRole("status")).toContainText("ギルドマスターの画像を変えました");
+
+  await page.getByRole("group", { name: "使う人" }).getByRole("button", { name: /レイ/ }).click();
+  await expect(title.getByRole("img", { name: "ギルドマスター", exact: true })).toBeVisible();
+  await title.getByRole("button", { name: "冒険に出る" }).click();
+  await expect(gold(page)).toHaveText("620");
 });
 
 test("画面が横にはみ出さない", async ({ page }) => {

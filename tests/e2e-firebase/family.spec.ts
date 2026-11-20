@@ -29,6 +29,7 @@ test("親と子の2台で、報告から交換まで", async ({ browser }) => {
   await kid.getByRole("button", { name: "招待コードで参加する" }).click();
   await kid.getByLabel("招待コード（6文字）").fill(code);
   await kid.getByRole("button", { name: "参加する" }).click();
+  await kid.getByRole("button", { name: "冒険に出る" }).click({ timeout: 15_000 });
   await expect(kid.locator(".card h1")).toHaveText("ルリ", { timeout: 15_000 });
   await expect(gold(kid)).toHaveText("0");
 

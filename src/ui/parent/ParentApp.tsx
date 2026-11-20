@@ -10,10 +10,13 @@ import {
   saveQuest,
   saveReward,
   revoke,
+  saveArt,
   sendBack
 } from "../../domain/rules";
 import type { Entry, FamilyState, Quest, QuestCategory, Reward } from "../../domain/types";
 import { Crest, Empty, EntryRow, Section, Tabs, UrgentPanel, timeLabel, useFeedback, useGuildState, useNow } from "../common";
+import { imageToDataUrl } from "../image";
+import { ART_ROLES, Portrait, type ArtSlot } from "../Portrait";
 
 type Tab = "check" | "kids" | "urgent" | "settings";
 
@@ -404,6 +407,8 @@ function Settings({ store, state, me, extra }: Props & { extra?: ReactNode }) {
         クエストを追加
       </button>
 
+      <ArtSettings store={store} state={state} me={me} />
+
       <Section title="ごほうび" aside={`${rewards.length} 件`} />
       <div className="rowlist">
         {rewards.map((r) => (
@@ -557,5 +562,63 @@ function RewardForm({ reward, onSave }: { reward: Reward; onSave(r: Reward): voi
         </button>
       )}
     </form>
+  );
+}
+
+// ---- タイトル画面のキャラ ----
+
+function ArtSettings({ store, state, me }: Pick<Props, "store" | "state" | "me">) {
+  const fb = useFeedback();
+  const [busy, setBusy] = useState<ArtSlot | null>(null);
+  const pick = async (slot: ArtSlot, file: File | undefined) => {
+    if (!file) return;
+    setBusy(slot);
+    try {
+      const data = await imageToDataUrl(file);
+      await fb.run(store, (s) => saveArt(s, me, slot, data), `${ART_ROLES[slot].title}の画像を変えました`, true);
+    } catch (e) {
+      console.error(e);
+      fb.toast("画像を読み込めませんでした。別の画像で試してください");
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <>
+      <Section title="タイトル画面のキャラ" aside="家族だけが見られます" />
+      <div className="artset">
+        {(["master", "okami"] as const).map((slot) => {
+          const src = state.art?.[slot] ?? null;
+          return (
+            <div className="slot" key={slot}>
+              <Portrait slot={slot} src={src} size="sm" />
+              <div className="t">{ART_ROLES[slot].title}</div>
+              <div className="acts">
+                <label className="mini" style={{ position: "relative", display: "inline-grid", placeItems: "center", cursor: "pointer" }}>
+                  {busy === slot ? "読み込み中…" : "画像を選ぶ"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    aria-label={`${ART_ROLES[slot].title}の画像を選ぶ`}
+                    style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
+                    disabled={busy !== null}
+                    onChange={(e) => {
+                      pick(slot, e.target.files?.[0]);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {src && (
+                  <button className="mini" onClick={() => fb.run(store, (s) => saveArt(s, me, slot, null), "シルエットに戻しました")}>
+                    戻す
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="note">縦長（3:4）の上半身の画像がきれいに収まります。子どもがアプリを開いたときのタイトル画面に出ます。</div>
+    </>
   );
 }
