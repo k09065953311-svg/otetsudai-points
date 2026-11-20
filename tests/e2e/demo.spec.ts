@@ -34,6 +34,8 @@ test("子どもの報告を親が承認すると G が増える", async ({ page 
 
   await switchTo(page, "レイ");
   await expect(gold(page)).toHaveText("650");
+  await page.getByRole("tab", { name: "冒険の記録" }).click();
+  await expect(page.locator(".log", { hasText: "お風呂そうじ" }).first()).toContainText("ギルドの女将が承認");
 });
 
 test("親は承認を取り消せる（押し間違い・テスト用）", async ({ page }) => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { newId, type GuildStore } from "../../data/store";
 import {
   availableCoins,
@@ -12,6 +12,7 @@ import {
   takeUrgent
 } from "../../domain/rules";
 import type { FamilyState, Quest } from "../../domain/types";
+import { GuildDoor } from "./GuildDoor";
 import { TitleScreen } from "./TitleScreen";
 import { Empty, EntryRow, GuildCard, Section, Tabs, UrgentPanel, useFeedback, useGuildState, useNow } from "../common";
 
@@ -21,13 +22,15 @@ export function KidApp({ store, me }: { store: GuildStore; me: string }) {
   const state = useGuildState(store);
   const now = useNow();
   const [tab, setTab] = useState<Tab>("home");
-  const [title, setTitle] = useState(true);
+  const [phase, setPhase] = useState<"title" | "door" | "app">("title");
+  const doorDone = useCallback(() => setPhase("app"), []);
   const kid = state.profiles.find((p) => p.id === me);
   if (!kid) return <Empty>読み込み中…</Empty>;
-  if (title) return <TitleScreen state={state} me={me} now={now} onStart={() => setTitle(false)} />;
+  if (phase === "title") return <TitleScreen state={state} me={me} now={now} onStart={() => setPhase("door")} />;
 
   return (
     <>
+      {phase === "door" && <GuildDoor onDone={doorDone} />}
       <main className="view">
         {tab === "home" && <Home store={store} state={state} me={me} now={now} />}
         {tab === "board" && <Board store={store} state={state} me={me} now={now} />}
@@ -139,6 +142,10 @@ function Board(props: Props) {
   const cats = ["手伝い", "勉強", "生活"] as const;
   return (
     <>
+      <header className="board-hero">
+        <h2>依頼掲示板</h2>
+        <span>達成したら「報告」。ギルドの承認で G が入るぞ</span>
+      </header>
       <Urgent {...props} />
       {cats.map((c) => {
         const list = quests.filter((q) => q.category === c);
