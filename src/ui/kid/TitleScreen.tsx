@@ -8,7 +8,7 @@ interface Line {
   text: string;
 }
 
-/** その時の状況に合わせた、ギルドマスターか女将のひと言 */
+/** その時の状況に合わせた、ギルドマスターか受付のひと言 */
 export function greeting(state: FamilyState, me: string, now: number): Line {
   const kid = state.profiles.find((p) => p.id === me);
   const name = kid?.name ?? "冒険者";
@@ -21,11 +21,11 @@ export function greeting(state: FamilyState, me: string, now: number): Line {
     .sort((a, b) => (b.decidedAt ?? 0) - (a.decidedAt ?? 0))[0];
   if (praised) return { who: "master", text: `「${praised.title}」、見事だった。報酬 ${praised.value} G を受け取れ！` };
   const waiting = mine.filter((e) => e.status === "wait" && e.kind !== "shop").length;
-  if (waiting > 0) return { who: "okami", text: `報告${waiting}件、ちゃんと受け取ってるよ。承認までもう少し待っててね` };
+  if (waiting > 0) return { who: "okami", text: `報告${waiting}件、たしかにお預かりしています。承認までもう少しお待ちくださいね` };
   const hour = new Date(now).getHours();
   if (hour >= 21 || hour < 5) return { who: "master", text: `もう夜も遅い。明日に備えて休むのも、冒険者の大事な仕事だぞ` };
-  if (hour < 10) return { who: "okami", text: `おはよう、${name}！ 今日の依頼も掲示板に貼り出してあるよ` };
-  if (hour >= 17) return { who: "okami", text: `おかえり、${name}。夕飯の前に、ひと仕事どうだい？` };
+  if (hour < 10) return { who: "okami", text: `おはようございます、${name}さん！ 今日の依頼も掲示板に貼り出してありますよ` };
+  if (hour >= 17) return { who: "okami", text: `おかえりなさい、${name}さん。夕飯の前に、ひと仕事いかがですか？` };
   const r = kid ? rankOf(kid.total).rank : "F";
   return { who: "master", text: `よく来たな、${name}。${r}ランクの腕前、見せてもらおうか` };
 }

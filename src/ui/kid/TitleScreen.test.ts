@@ -8,9 +8,9 @@ const at = (h: number) => new Date(2026, 10, 21, h, 0).getTime();
 describe("タイトル画面のひと言", () => {
   it("時間帯であいさつが変わる", () => {
     const s = initialFamily();
-    expect(greeting(s, "rei", at(7))).toMatchObject({ who: "okami", text: expect.stringContaining("おはよう、レイ") });
+    expect(greeting(s, "rei", at(7))).toMatchObject({ who: "okami", text: expect.stringContaining("おはようございます、レイさん") });
     expect(greeting(s, "rei", at(14))).toMatchObject({ who: "master" });
-    expect(greeting(s, "rei", at(18))).toMatchObject({ who: "okami", text: expect.stringContaining("おかえり") });
+    expect(greeting(s, "rei", at(18))).toMatchObject({ who: "okami", text: expect.stringContaining("おかえりなさい") });
     expect(greeting(s, "rei", at(22)).text).toContain("休む");
   });
   it("承認待ち・承認済み・緊急クエストの順に優先して知らせる", () => {

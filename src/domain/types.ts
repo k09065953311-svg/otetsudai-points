@@ -79,7 +79,7 @@ export interface Entry {
 export interface GuildArt {
   /** ギルドマスター（父） */
   master: string | null;
-  /** ギルドの女将（母） */
+  /** ギルドの受付（母） */
   okami: string | null;
 }
 
