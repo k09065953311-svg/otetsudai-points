@@ -3,7 +3,7 @@
 // 各操作は「何をどう書き換えるか」(Mutation の一覧) を返す。
 // お試しモードはそれを手元の状態に、Firebase モードは Firestore に適用する。
 
-import type { Entry, FamilyState, Profile, Quest, Reward, UrgentQuest } from "./types";
+import type { Entry, FamilyState, GuildArt, Profile, Quest, Reward, UrgentQuest } from "./types";
 
 export class GuildError extends Error {}
 
@@ -12,7 +12,8 @@ export type Mutation =
   | { op: "putProfile"; profile: Profile }
   | { op: "putQuest"; quest: Quest }
   | { op: "putReward"; reward: Reward }
-  | { op: "putUrgent"; urgent: UrgentQuest | null };
+  | { op: "putUrgent"; urgent: UrgentQuest | null }
+  | { op: "putArt"; art: GuildArt };
 
 // ---- ランク ----
 
@@ -350,6 +351,20 @@ export function saveReward(state: FamilyState, parentId: string, reward: Reward)
   return [{ op: "putReward", reward: { ...reward, title: reward.title.trim() } }];
 }
 
+/** 1枚あたりの上限（data URL の文字数）。2枚で Firestore の1件 1MB に収まるように */
+export const ART_MAX_CHARS = 420_000;
+
+/** タイトル画面のキャラ画像を差し替える（null で元のシルエットに戻す） */
+export function saveArt(state: FamilyState, parentId: string, slot: keyof GuildArt, image: string | null): Mutation[] {
+  findParent(state, parentId);
+  if (image !== null) {
+    if (!/^data:image\/(jpeg|png|webp);base64,/.test(image)) throw new GuildError("画像の形式が読み取れませんでした");
+    if (image.length > ART_MAX_CHARS) throw new GuildError("画像が大きすぎます。もう少し小さい画像にしてください");
+  }
+  const art: GuildArt = { master: null, okami: null, ...(state.art ?? {}), [slot]: image };
+  return [{ op: "putArt", art }];
+}
+
 // ---- 適用（お試しモードとテストで使う） ----
 
 function upsert<T extends { id: string }>(list: T[], item: T): T[] {
@@ -378,6 +393,9 @@ export function applyMutations(state: FamilyState, muts: Mutation[]): FamilyStat
         break;
       case "putUrgent":
         s = { ...s, urgent: m.urgent };
+        break;
+      case "putArt":
+        s = { ...s, art: m.art };
         break;
     }
   }

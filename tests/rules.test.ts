@@ -181,6 +181,13 @@ describe("親", () => {
     b.update(doc(db, "families", F, "profiles", "ruri"), { coins: 0, total: 0 });
     await assertSucceeds(b.commit());
   });
+  it("タイトル画面のキャラ画像は親だけが変えられ、家族だけが見られる", async () => {
+    const art = { master: "data:image/jpeg;base64,AAAA", okami: null };
+    await assertFails(setDoc(doc(as("u-ruri"), "families", F, "meta", "art"), art));
+    await assertSucceeds(setDoc(doc(as("u-mama"), "families", F, "meta", "art"), art));
+    await assertSucceeds(getDoc(doc(as("u-rei"), "families", F, "meta", "art")));
+    await assertFails(getDoc(doc(as("u-stranger"), "families", F, "meta", "art")));
+  });
   it("招待コードを作れる", async () => {
     await assertSucceeds(setDoc(doc(as("u-mama"), "invites", "NEW001"), { familyId: F, profileId: "papa", role: "parent", createdBy: "u-mama", expiresAt: now() + 1000, usedBy: null }));
   });

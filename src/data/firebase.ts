@@ -41,7 +41,7 @@ import {
 } from "firebase/firestore";
 import { applyMutations, GuildError, type Mutation } from "../domain/rules";
 import { initialFamily } from "../domain/seed";
-import type { Entry, FamilyState, Profile, Quest, Reward, Role, UrgentQuest } from "../domain/types";
+import type { Entry, FamilyState, GuildArt, Profile, Quest, Reward, Role, UrgentQuest } from "../domain/types";
 import { firebaseConfig as config, firebaseConfigured } from "./config";
 import type { Build, GuildStore } from "./store";
 
@@ -191,6 +191,12 @@ export function createFirestoreStore(familyId: string): GuildStore {
     })
   );
   unsubs.push(
+    onSnapshot(doc(fam, "meta", "art"), (snap) => {
+      state = { ...state, art: (snap.data() as GuildArt | undefined) ?? null };
+      emit();
+    })
+  );
+  unsubs.push(
     onSnapshot(doc(fam, "meta", "urgent"), (snap) => {
       state = { ...state, urgent: (snap.data()?.urgent as UrgentQuest | null) ?? null };
       emit();
@@ -209,6 +215,8 @@ export function createFirestoreStore(familyId: string): GuildStore {
         return doc(fam, "rewards", m.reward.id);
       case "putUrgent":
         return doc(fam, "meta", "urgent");
+      case "putArt":
+        return doc(fam, "meta", "art");
     }
   };
 
@@ -238,10 +246,12 @@ export function createFirestoreStore(familyId: string): GuildStore {
           else if (col === "quests") fresh = applyMutations(fresh, [{ op: "putQuest", quest: data as Quest }]);
           else if (col === "rewards") fresh = applyMutations(fresh, [{ op: "putReward", reward: data as Reward }]);
           else if (ref.id === "urgent") fresh = { ...fresh, urgent: (data.urgent as UrgentQuest | null) ?? null };
+          else if (ref.id === "art") fresh = { ...fresh, art: data as GuildArt };
         }
         for (const m of build(fresh)) {
           const ref = refOf(m);
           if (m.op === "putUrgent") tx.set(ref, { urgent: m.urgent });
+          else if (m.op === "putArt") tx.set(ref, m.art);
           else tx.set(ref, m.op === "putEntry" ? m.entry : m.op === "putProfile" ? m.profile : m.op === "putQuest" ? m.quest : m.reward);
         }
       });

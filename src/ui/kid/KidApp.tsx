@@ -12,6 +12,7 @@ import {
   takeUrgent
 } from "../../domain/rules";
 import type { FamilyState, Quest } from "../../domain/types";
+import { TitleScreen } from "./TitleScreen";
 import { Empty, EntryRow, GuildCard, Section, Tabs, UrgentPanel, useFeedback, useGuildState, useNow } from "../common";
 
 type Tab = "home" | "board" | "shop" | "log";
@@ -20,8 +21,10 @@ export function KidApp({ store, me }: { store: GuildStore; me: string }) {
   const state = useGuildState(store);
   const now = useNow();
   const [tab, setTab] = useState<Tab>("home");
+  const [title, setTitle] = useState(true);
   const kid = state.profiles.find((p) => p.id === me);
   if (!kid) return <Empty>読み込み中…</Empty>;
+  if (title) return <TitleScreen state={state} me={me} now={now} onStart={() => setTitle(false)} />;
 
   return (
     <>
