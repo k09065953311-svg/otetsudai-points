@@ -1,0 +1,47 @@
+name: 公開（Firebase Hosting）
+
+# main にマージされたら、テストが通ったものを自動で公開する。
+# 事前に GitHub の Secrets に FIREBASE_SERVICE_ACCOUNT を登録しておく（docs/SETUP.md 参照）。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency: deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 公開の準備ができているか確認
+        id: check
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ] || [ ! -f .env.production ]; then
+            echo "まだ Firebase の設定が終わっていないので、公開はスキップします（docs/SETUP.md）"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.check.outputs.ready == 'true'
+        run: npm ci
+      - if: steps.check.outputs.ready == 'true'
+        run: npm test
+      - if: steps.check.outputs.ready == 'true'
+        run: npm run build
+      - name: Firebase に公開（アプリとセキュリティルール）
+        if: steps.check.outputs.ready == 'true'
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          echo "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          PROJECT_ID=$(grep '^VITE_FIREBASE_PROJECT_ID=' .env.production | cut -d= -f2)
+          npx firebase deploy --only hosting,firestore --project "$PROJECT_ID" --non-interactive

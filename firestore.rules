@@ -1,0 +1,133 @@
+rules_version = '2';
+
+// おうちギルドのセキュリティルール。
+// ・家族の外の人は何も読めない・書けない
+// ・G（残高）を動かせるのは親だけ（承認・ボーナス）
+// ・子どもができるのは「自分の名前での報告・交換申請」と「緊急クエストの受注」だけ
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function memberPath(fid) { return /databases/$(database)/documents/families/$(fid)/members/$(uid()); }
+    function isMember(fid) { return signedIn() && exists(memberPath(fid)); }
+    function me(fid) { return get(memberPath(fid)).data; }
+    function isParent(fid) { return isMember(fid) && me(fid).role == 'parent'; }
+    function isKid(fid) { return isMember(fid) && me(fid).role == 'kid'; }
+    // 家族を作る一括書き込みでは、親の登録が同じ書き込みの中にあるため「書き込み後」で判定する
+    function isParentAfter(fid) {
+      return signedIn() && existsAfter(memberPath(fid)) && getAfter(memberPath(fid)).data.role == 'parent';
+    }
+    function nowMs() { return request.time.toMillis(); }
+
+    match /users/{userId} {
+      allow read: if signedIn() && uid() == userId;
+      allow create, update: if signedIn() && uid() == userId
+        && request.resource.data.keys().hasOnly(['familyId'])
+        && existsAfter(/databases/$(database)/documents/families/$(request.resource.data.familyId)/members/$(userId));
+    }
+
+    match /invites/{code} {
+      // コードを知っている人だけが1件読める（一覧は取れない）
+      allow get: if signedIn();
+      allow create: if isParent(request.resource.data.familyId)
+        && request.resource.data.createdBy == uid()
+        && request.resource.data.usedBy == null
+        && request.resource.data.expiresAt is int;
+      allow update: if signedIn()
+        && resource.data.usedBy == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedBy'])
+        && request.resource.data.usedBy == uid()
+        && existsAfter(/databases/$(database)/documents/families/$(resource.data.familyId)/members/$(uid()));
+      allow delete: if isParent(resource.data.familyId);
+    }
+
+    match /families/{fid} {
+      allow read: if isMember(fid);
+      allow create: if signedIn() && request.resource.data.ownerUid == uid();
+      allow update: if isParent(fid) && request.resource.data.ownerUid == resource.data.ownerUid;
+
+      function inviteOk(userId) {
+        let code = request.resource.data.inviteCode;
+        let inv = get(/databases/$(database)/documents/invites/$(code)).data;
+        return code is string
+          && inv.familyId == fid
+          && inv.profileId == request.resource.data.profileId
+          && inv.role == request.resource.data.role
+          && inv.usedBy == null
+          && inv.expiresAt > nowMs()
+          && getAfter(/databases/$(database)/documents/invites/$(code)).data.usedBy == userId;
+      }
+
+      match /members/{userId} {
+        allow read: if isMember(fid);
+        allow create: if signedIn() && uid() == userId
+          && request.resource.data.role in ['parent', 'kid']
+          && (
+            // 家族を作った本人が、親として最初に入る
+            (getAfter(/databases/$(database)/documents/families/$(fid)).data.ownerUid == userId
+              && request.resource.data.role == 'parent'
+              && request.resource.data.inviteCode == null)
+            // 招待コードで入る
+            || inviteOk(userId)
+          );
+        allow delete: if isParent(fid);
+        allow update: if false;
+      }
+
+      match /profiles/{pid} {
+        allow read: if isMember(fid);
+        allow write: if isParentAfter(fid);
+      }
+      match /quests/{qid} {
+        allow read: if isMember(fid);
+        allow write: if isParentAfter(fid);
+      }
+      match /rewards/{rid} {
+        allow read: if isMember(fid);
+        allow write: if isParentAfter(fid);
+      }
+
+      match /meta/{name} {
+        allow read: if isMember(fid);
+        allow write: if isParentAfter(fid) || (name == 'urgent' && kidTakesUrgent());
+
+        // 子どもは「まだ誰も受けていない・時間内の緊急クエスト」を自分の名前で受注できるだけ
+        function kidTakesUrgent() {
+          let before = resource.data.urgent;
+          let after = request.resource.data.urgent;
+          return isKid(fid)
+            && before != null && before.takenBy == null && before.done == false && before.deadline > nowMs()
+            && after.diff(before).affectedKeys().hasOnly(['takenBy'])
+            && after.takenBy == me(fid).profileId;
+        }
+      }
+
+      match /entries/{eid} {
+        allow read: if isMember(fid);
+        allow create: if isParent(fid) || (isKid(fid) && kidEntryOk());
+        allow update: if isParent(fid)
+          && request.resource.data.profileId == resource.data.profileId
+          && request.resource.data.value == resource.data.value;
+        allow delete: if false;
+
+        // 子どもの報告は「自分の名前・承認待ち・本当の報酬額・いまの時刻」でなければ通らない
+        function kidEntryOk() {
+          let d = request.resource.data;
+          let urgentAfter = getAfter(/databases/$(database)/documents/families/$(fid)/meta/urgent).data.urgent;
+          return d.id == eid
+            && d.profileId == me(fid).profileId
+            && d.status == 'wait' && d.decidedAt == null && d.decidedBy == null && d.comment == null
+            && d.value is int
+            && d.createdAt is int && d.createdAt > nowMs() - 600000 && d.createdAt < nowMs() + 600000
+            && (
+              (d.kind == 'quest' && get(/databases/$(database)/documents/families/$(fid)/quests/$(d.refId)).data.reward == d.value)
+              || (d.kind == 'shop' && get(/databases/$(database)/documents/families/$(fid)/rewards/$(d.refId)).data.price == d.value)
+              || (d.kind == 'urgent' && urgentAfter.id == d.refId && urgentAfter.reward == d.value
+                  && urgentAfter.takenBy == d.profileId)
+            );
+        }
+      }
+    }
+  }
+}
