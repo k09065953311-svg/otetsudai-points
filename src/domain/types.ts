@@ -71,6 +71,8 @@ export interface Entry {
   decidedAt: number | null;
   decidedBy: string | null;
   comment: string | null;
+  /** 親が承認を取り消した時刻（取り消していなければ無し） */
+  revokedAt?: number | null;
 }
 
 export interface FamilyState {

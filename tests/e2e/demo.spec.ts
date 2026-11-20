@@ -32,6 +32,26 @@ test("子どもの報告を親が承認すると G が増える", async ({ page 
   await expect(gold(page)).toHaveText("650");
 });
 
+test("親は承認を取り消せる（押し間違い・テスト用）", async ({ page }) => {
+  await switchTo(page, "レイ");
+  await page.getByRole("tab", { name: "依頼掲示板" }).click();
+  await page.locator(".quest", { hasText: "お風呂そうじ" }).getByRole("button", { name: "達成を報告する" }).click();
+  await switchTo(page, "母");
+  await page.locator(".approve", { hasText: "レイ：お風呂そうじ" }).getByRole("button", { name: "承認する" }).click();
+  await expect(page.getByRole("status")).toContainText("レイに 30 G を付与しました");
+
+  await page.getByRole("tab", { name: "冒険者" }).click();
+  await page.getByRole("button", { name: "レイの「お風呂そうじ」の承認を取り消す" }).first().click();
+  await page.getByLabel(/理由/).fill("テスト");
+  await page.getByRole("dialog").getByRole("button", { name: "取り消す" }).click();
+  await expect(page.getByRole("status")).toContainText("レイの 30 G を取り消しました");
+
+  await switchTo(page, "レイ");
+  await expect(gold(page)).toHaveText("620");
+  await page.getByRole("tab", { name: "冒険の記録" }).click();
+  await expect(page.locator(".log", { hasText: "お風呂そうじ" }).first()).toContainText("承認取り消し：テスト");
+});
+
 test("差し戻すとコメントが子どもの記録に残る", async ({ page }) => {
   await switchTo(page, "父");
   const item = page.locator(".approve", { hasText: "リツ：朝の支度を自分で" });
