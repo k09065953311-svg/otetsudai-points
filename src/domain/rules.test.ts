@@ -9,6 +9,7 @@ import {
   rankOf,
   reportQuest,
   requestExchange,
+  revoke,
   sendBack,
   takeUrgent,
   weekStart
@@ -184,5 +185,40 @@ describe("ボーナス", () => {
     expect(s.entries[0]).toMatchObject({ kind: "bonus", status: "ok", title: "ボーナス：妹に優しくした" });
     expect(() => giveBonus(s, "ruri", "rei", 20, "", NOW, "b2")).toThrow("親のアカウント");
     expect(() => giveBonus(s, "ruri", "papa", 0, "", NOW, "b3")).toThrow(GuildError);
+  });
+});
+
+describe("承認の取り消し", () => {
+  it("クエストの承認を取り消すと G と累計が元に戻り、記録は「取り消し」で残る", () => {
+    let s = initialFamily();
+    s = run(s, reportQuest(s, "rei", "q-dishes", NOW, "r1"));
+    s = run(s, approve(s, "r1", "papa", NOW));
+    const got = coins(s, "rei").coins;
+    expect(got).toBeGreaterThan(0);
+    s = run(s, revoke(s, "r1", "mama", "テスト", NOW + 1000));
+    expect(coins(s, "rei")).toMatchObject({ coins: 0, total: 0 });
+    const e = s.entries.find((x) => x.id === "r1")!;
+    expect(e).toMatchObject({ status: "back", revokedAt: NOW + 1000, comment: "承認取り消し：テスト" });
+    // 取り消した報告は今日の回数に数えない
+    expect(() => reportQuest(s, "rei", "q-dishes", NOW + 2000, "r2")).not.toThrow();
+  });
+
+  it("交換の取り消しは払った G を返す（累計は変わらない）", () => {
+    let s = withCoins("ruri", 1000);
+    const reward = s.rewards[0];
+    s = run(s, requestExchange(s, "ruri", reward.id, NOW, "x1"));
+    s = run(s, approve(s, "x1", "papa", NOW));
+    s = run(s, revoke(s, "x1", "papa", "", NOW));
+    expect(coins(s, "ruri")).toMatchObject({ coins: 1000, total: 1000 });
+  });
+
+  it("もう使ってしまった G は取り消せない・承認待ちや取り消し済みも取り消せない", () => {
+    let s = initialFamily();
+    s = run(s, giveBonus(s, "ritsu", "papa", 50, "", NOW, "b1"));
+    s.profiles.find((p) => p.id === "ritsu")!.coins = 10;
+    expect(() => revoke(s, "b1", "papa", "", NOW)).toThrow(GuildError);
+    s = run(s, reportQuest(s, "ritsu", "q-dishes", NOW, "w1"));
+    expect(() => revoke(s, "w1", "papa", "", NOW)).toThrow(GuildError);
+    expect(() => revoke(s, "b1", "ritsu", "", NOW)).toThrow(GuildError);
   });
 });

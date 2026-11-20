@@ -223,14 +223,28 @@ export function timeLabel(ts: number, now: number): string {
   return `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
 }
 
-export function EntryRow({ e, state, now, showName }: { e: Entry; state: FamilyState; now: number; showName?: boolean }) {
+export function EntryRow({
+  e,
+  state,
+  now,
+  showName,
+  action
+}: {
+  e: Entry;
+  state: FamilyState;
+  now: number;
+  showName?: boolean;
+  action?: ReactNode;
+}) {
   const who = state.profiles.find((p) => p.id === e.profileId);
   const pill =
     e.status === "wait"
       ? ["p-wait", "承認待ち"]
       : e.status === "ok"
         ? ["p-ok", e.kind === "shop" ? "交換済み" : e.kind === "bonus" ? "ボーナス" : "承認"]
-        : ["p-back", e.kind === "shop" ? "キャンセル" : "差し戻し"];
+        : e.revokedAt
+          ? ["p-back", "取り消し"]
+          : ["p-back", e.kind === "shop" ? "キャンセル" : "差し戻し"];
   const minus = e.kind === "shop";
   return (
     <div className="log">
@@ -250,6 +264,7 @@ export function EntryRow({ e, state, now, showName }: { e: Entry; state: FamilyS
           {e.value}
         </span>
         <span className={`pill ${pill[0]}`}>{pill[1]}</span>
+        {action}
       </div>
     </div>
   );

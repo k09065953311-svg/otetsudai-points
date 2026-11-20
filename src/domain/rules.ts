@@ -243,6 +243,36 @@ export function sendBack(state: FamilyState, entryId: string, parentId: string, 
   return muts;
 }
 
+/**
+ * 承認の取り消し（押し間違い・テストのやり直し用）。
+ * クエスト・緊急・ボーナスは付けた G を減らし、交換は払った G を返す。記録は「取り消し」として残る。
+ */
+export function revoke(state: FamilyState, entryId: string, parentId: string, reason: string, now: number): Mutation[] {
+  findParent(state, parentId);
+  const e = findEntry(state, entryId);
+  if (e.status !== "ok") throw new GuildError("承認済みの記録だけ取り消せます");
+  const kid = findProfile(state, e.profileId);
+  const note = reason.trim() ? `承認取り消し：${reason.trim()}` : "承認取り消し";
+  const revoked: Entry = { ...e, status: "back", comment: note, revokedAt: now, decidedBy: parentId };
+  if (e.kind === "shop") {
+    return [
+      { op: "putEntry", entry: revoked },
+      { op: "putProfile", profile: { ...kid, coins: kid.coins + e.value } }
+    ];
+  }
+  if (kid.coins - e.value < reservedCoins(state, kid.id)) {
+    throw new GuildError(
+      kid.coins < e.value
+        ? `${kid.name}はもう G を使っているので取り消せません（所持 ${kid.coins} G）`
+        : `${kid.name}の交換申請中の G が足りなくなります。先に交換申請をキャンセルしてください`
+    );
+  }
+  return [
+    { op: "putEntry", entry: revoked },
+    { op: "putProfile", profile: { ...kid, coins: kid.coins - e.value, total: Math.max(0, kid.total - e.value) } }
+  ];
+}
+
 export function giveBonus(
   state: FamilyState,
   kidId: string,

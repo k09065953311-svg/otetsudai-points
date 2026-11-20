@@ -170,6 +170,17 @@ describe("親", () => {
     await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore() as unknown as Firestore, "families", F, "entries", "e1"), entry()));
     await assertFails(updateDoc(doc(as("u-mama"), "families", F, "entries", "e1"), { value: 300 }));
   });
+  it("承認を取り消して G を戻せる（子どもは取り消せない）", async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore() as unknown as Firestore, "families", F, "entries", "e1"), { ...entry(), status: "ok", decidedAt: now(), decidedBy: "mama" })
+    );
+    await assertFails(updateDoc(doc(as("u-ruri"), "families", F, "entries", "e1"), { status: "back", revokedAt: now() }));
+    const db = as("u-mama");
+    const b = writeBatch(db);
+    b.update(doc(db, "families", F, "entries", "e1"), { status: "back", revokedAt: now(), comment: "承認取り消し", decidedBy: "mama" });
+    b.update(doc(db, "families", F, "profiles", "ruri"), { coins: 0, total: 0 });
+    await assertSucceeds(b.commit());
+  });
   it("招待コードを作れる", async () => {
     await assertSucceeds(setDoc(doc(as("u-mama"), "invites", "NEW001"), { familyId: F, profileId: "papa", role: "parent", createdBy: "u-mama", expiresAt: now() + 1000, usedBy: null }));
   });

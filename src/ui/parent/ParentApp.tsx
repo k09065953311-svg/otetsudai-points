@@ -9,6 +9,7 @@ import {
   rankOf,
   saveQuest,
   saveReward,
+  revoke,
   sendBack
 } from "../../domain/rules";
 import type { Entry, FamilyState, Quest, QuestCategory, Reward } from "../../domain/types";
@@ -189,7 +190,10 @@ function Kids({ store, state, me, now, extra }: Props & { extra?: ReactNode }) {
   const [bonusFor, setBonusFor] = useState<string | null>(null);
   const [value, setValue] = useState(20);
   const [reason, setReason] = useState("");
+  const [undo, setUndo] = useState<Entry | null>(null);
+  const [undoReason, setUndoReason] = useState("");
   const recent = state.entries.slice(-40).reverse();
+  const nameOf = (id: string) => state.profiles.find((p) => p.id === id)?.name ?? "";
   return (
     <>
       <Section title="冒険者たち" aside="所持 G" />
@@ -214,10 +218,58 @@ function Kids({ store, state, me, now, extra }: Props & { extra?: ReactNode }) {
       <Section title="最近の記録" aside={`${recent.length} 件`} />
       <div className="list">
         {recent.map((e) => (
-          <EntryRow key={e.id} e={e} state={state} now={now} showName />
+          <EntryRow
+            key={e.id}
+            e={e}
+            state={state}
+            now={now}
+            showName
+            action={
+              e.status === "ok" ? (
+                <button
+                  className="mini"
+                  aria-label={`${nameOf(e.profileId)}の「${e.title}」の承認を取り消す`}
+                  onClick={() => {
+                    setUndo(e);
+                    setUndoReason("");
+                  }}
+                >
+                  取り消す
+                </button>
+              ) : undefined
+            }
+          />
         ))}
         {recent.length === 0 && <Empty>まだ記録がありません</Empty>}
       </div>
+      {undo && (
+        <Sheet title="承認を取り消す" onClose={() => setUndo(null)}>
+          <div className="form">
+            <span style={{ fontSize: 14 }}>
+              {nameOf(undo.profileId)}の「{undo.title}」を取り消します。
+              {undo.kind === "shop" ? `払った ${undo.value} G が戻ります。` : `付けた ${undo.value} G が減ります。`}
+            </span>
+            <label htmlFor="undo-reason">
+              理由（子どもの記録に残ります・なくてもOK）
+              <input id="undo-reason" value={undoReason} maxLength={30} onChange={(ev) => setUndoReason(ev.target.value)} placeholder="例：押し間違い、テスト" />
+            </label>
+            <button
+              className="btn btn-red"
+              onClick={async () => {
+                const e = undo;
+                setUndo(null);
+                await fb.run(
+                  store,
+                  (s) => revoke(s, e.id, me, undoReason, Date.now()),
+                  e.kind === "shop" ? `${e.value} G を${nameOf(e.profileId)}に戻しました` : `${nameOf(e.profileId)}の ${e.value} G を取り消しました`
+                );
+              }}
+            >
+              取り消す
+            </button>
+          </div>
+        </Sheet>
+      )}
       {bonusFor && (
         <Sheet title={`${state.profiles.find((p) => p.id === bonusFor)?.name}にボーナス`} onClose={() => setBonusFor(null)}>
           <div className="form">
