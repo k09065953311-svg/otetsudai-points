@@ -1,0 +1,24 @@
+name: 保守作業（本番データの修正）
+
+# maint/ で始まるブランチに push したときだけ動く。一回限りのデータ修正用。
+on:
+  push:
+    branches: ["maint/**"]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save --no-package-lock firebase-admin@13
+      - name: クエストの分類を移行する
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          echo "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          export PROJECT_ID=$(grep '^VITE_FIREBASE_PROJECT_ID=' .env.production | cut -d= -f2)
+          node scripts/maint/migrate-quest-categories.mjs
