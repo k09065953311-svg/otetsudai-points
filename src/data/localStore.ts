@@ -1,6 +1,6 @@
 // お試しモード: この端末の中（localStorage）だけで動く。Firebase の設定前でも全機能を試せる。
 
-import { applyMutations } from "../domain/rules";
+import { applyMutations, normalizeQuest } from "../domain/rules";
 import { demoFamily } from "../domain/seed";
 import type { FamilyState } from "../domain/types";
 import type { Build, GuildStore } from "./store";
@@ -10,7 +10,9 @@ const KEY = "otetsudai-demo-v1";
 function load(): FamilyState | null {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as FamilyState) : null;
+    if (!raw) return null;
+    const s = JSON.parse(raw) as FamilyState;
+    return { ...s, quests: s.quests.map(normalizeQuest) };
   } catch {
     return null;
   }

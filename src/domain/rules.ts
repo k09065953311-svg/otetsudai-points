@@ -3,7 +3,7 @@
 // 各操作は「何をどう書き換えるか」(Mutation の一覧) を返す。
 // お試しモードはそれを手元の状態に、Firebase モードは Firestore に適用する。
 
-import type { Entry, FamilyState, GuildArt, Profile, Quest, Reward, UrgentQuest } from "./types";
+import { QUEST_CATEGORIES, type Entry, type FamilyState, type GuildArt, type Profile, type Quest, type QuestCategory, type Reward, type UrgentQuest } from "./types";
 
 export class GuildError extends Error {}
 
@@ -95,6 +95,11 @@ function findEntry(state: FamilyState, id: string): Entry {
   const e = state.entries.find((x) => x.id === id);
   if (!e) throw new GuildError("記録が見つかりません");
   return e;
+}
+
+/** 昔の分類（「生活」など）や知らない分類は「手伝い」として扱う */
+export function normalizeQuest(q: Quest): Quest {
+  return (QUEST_CATEGORIES as readonly string[]).includes(q.category) ? q : { ...q, category: "手伝い" as QuestCategory };
 }
 
 export function questsFor(state: FamilyState, kidId: string): Quest[] {
@@ -340,6 +345,7 @@ export function cancelUrgent(state: FamilyState, parentId: string): Mutation[] {
 export function saveQuest(state: FamilyState, parentId: string, quest: Quest): Mutation[] {
   findParent(state, parentId);
   if (!quest.title.trim()) throw new GuildError("クエスト名を入れてください");
+  if (!(QUEST_CATEGORIES as readonly string[]).includes(quest.category)) throw new GuildError("種類を選んでください");
   if (!Number.isInteger(quest.reward) || quest.reward <= 0) throw new GuildError("報酬は1以上の整数で入れてください");
   return [{ op: "putQuest", quest: { ...quest, title: quest.title.trim() } }];
 }

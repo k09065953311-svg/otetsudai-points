@@ -13,7 +13,7 @@ import {
   saveArt,
   sendBack
 } from "../../domain/rules";
-import type { Entry, FamilyState, Quest, QuestCategory, Reward } from "../../domain/types";
+import { QUEST_CATEGORIES, type Entry, type FamilyState, type Quest, type Reward } from "../../domain/types";
 import { Crest, Empty, EntryRow, Section, Tabs, UrgentPanel, timeLabel, useFeedback, useGuildState, useNow } from "../common";
 import { imageToDataUrl } from "../image";
 import { ART_ROLES, Portrait, type ArtSlot } from "../Portrait";
@@ -479,7 +479,7 @@ function QuestForm({ quest, kids, onSave }: { quest: Quest; kids: FamilyState["p
         <input id="q-title" value={q.title} maxLength={24} onChange={(e) => setQ({ ...q, title: e.target.value })} placeholder="例：玄関の靴をそろえる" />
       </label>
       <div className="seg" role="group" aria-label="種類">
-        {(["手伝い", "勉強", "生活"] as QuestCategory[]).map((c) => (
+        {QUEST_CATEGORIES.map((c) => (
           <button key={c} type="button" aria-pressed={q.category === c} onClick={() => setQ({ ...q, category: c })}>
             {c}
           </button>
