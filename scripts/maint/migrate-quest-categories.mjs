@@ -1,32 +1,33 @@
-// 一回限りの保守作業: クエストの分類を「手伝い・勉強・運動」に揃える。
-// 「生活」など3種類以外の分類だけを「手伝い」に書き換える（分類以外の項目は触らない）。
+// 一回限りの保守作業（2回目）: 運動のクエストを「運動」に分類する。
+// 1回目で「生活」→「手伝い」にまとめた中に運動のクエストがあったため、題名で指定して直す。分類以外は触らない。
 import { initializeApp, applicationDefault } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 
-const OK = ["手伝い", "勉強", "運動"];
+const SPORTS = [
+  "1人でフットサル行く",
+  "縄跳び100回",
+  "スクワット10回×３セット",
+  "ランニング（赤小まで2往復）",
+  "ランニング（赤小まで5往復）",
+  "腕立伏せ10回"
+];
 initializeApp({ credential: applicationDefault(), projectId: process.env.PROJECT_ID });
 const db = getFirestore();
 
 const families = await db.collection("families").get();
-console.log(`families: ${families.size}`);
-for (const fam of families.docs) {
-  const quests = await fam.ref.collection("quests").get();
-  const batch = db.batch();
-  let n = 0;
-  for (const d of quests.docs) {
-    const q = d.data();
-    const fix = !OK.includes(q.category);
-    console.log(`before: ${q.title} [${q.category}]${q.archived ? " (しまったクエスト)" : ""}${fix ? " -> 手伝い" : ""}`);
-    if (fix) {
-      batch.update(d.ref, { category: "手伝い" });
-      n++;
-    }
+if (families.size !== 1) throw new Error("家族が1つではないので中止");
+const fam = families.docs[0].ref;
+const quests = await fam.collection("quests").get();
+const batch = db.batch();
+const found = [];
+for (const d of quests.docs) {
+  const q = d.data();
+  if (SPORTS.includes(q.title) && q.category !== "運動") {
+    batch.update(d.ref, { category: "運動" });
+    found.push(q.title);
   }
-  if (n) await batch.commit();
-  const after = await fam.ref.collection("quests").get();
-  const counts = {};
-  for (const d of after.docs) counts[d.data().category] = (counts[d.data().category] ?? 0) + 1;
-  console.log(`updated ${n} quests. after: ${JSON.stringify(counts)}`);
-  const bad = after.docs.filter((d) => !OK.includes(d.data().category));
-  if (bad.length) throw new Error(`まだ3種類以外の分類が ${bad.length} 件あります`);
 }
+if (found.length !== SPORTS.length) throw new Error(`想定と違うので中止: 見つかったのは ${found.join("、")}`);
+await batch.commit();
+const after = await fam.collection("quests").get();
+for (const d of after.docs) console.log(`after: ${d.data().title} [${d.data().category}]`);
