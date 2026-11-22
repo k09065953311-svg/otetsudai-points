@@ -16,7 +16,8 @@ export interface Profile {
   total: number;
 }
 
-export type QuestCategory = "手伝い" | "勉強" | "生活";
+export const QUEST_CATEGORIES = ["手伝い", "勉強", "運動"] as const;
+export type QuestCategory = (typeof QUEST_CATEGORIES)[number];
 
 export interface Quest {
   id: string;

@@ -98,17 +98,20 @@ test("緊急クエストは先着1名", async ({ page }) => {
   await expect(gold(page)).toHaveText("1,300");
 });
 
-test("親がクエストを追加すると子どもの掲示板に出る", async ({ page }) => {
+test("親が「運動」のクエストを追加すると子どもの掲示板の運動の欄に出る", async ({ page }) => {
   await switchTo(page, "父");
   await page.getByRole("tab", { name: "設定" }).click();
   await page.getByRole("button", { name: "クエストを追加" }).click();
-  await page.getByLabel("クエスト名").fill("玄関の靴をそろえる");
+  await page.getByLabel("クエスト名").fill("縄跳び100回");
+  await page.getByRole("group", { name: "種類" }).getByRole("button", { name: "運動" }).click();
   await page.getByLabel("報酬（G）").fill("15");
   await page.getByRole("button", { name: "保存する" }).click();
 
   await switchTo(page, "リツ");
   await page.getByRole("tab", { name: "依頼掲示板" }).click();
-  await expect(page.locator(".quest", { hasText: "玄関の靴をそろえる" })).toContainText("15 G");
+  const sports = page.locator(".stack", { has: page.getByText("運動の依頼") });
+  await expect(sports.locator(".quest", { hasText: "縄跳び100回" })).toContainText("15 G");
+  await expect(page.getByText("生活の依頼")).toHaveCount(0);
 });
 
 test("子どもが開くとギルドのタイトル画面が出て、親が登録したキャラ画像が使われる", async ({ page }) => {

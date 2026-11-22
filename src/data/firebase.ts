@@ -39,7 +39,7 @@ import {
   type DocumentReference,
   type Firestore
 } from "firebase/firestore";
-import { applyMutations, GuildError, type Mutation } from "../domain/rules";
+import { applyMutations, GuildError, normalizeQuest, type Mutation } from "../domain/rules";
 import { initialFamily } from "../domain/seed";
 import type { Entry, FamilyState, GuildArt, Profile, Quest, Reward, Role, UrgentQuest } from "../domain/types";
 import { firebaseConfig as config, firebaseConfigured } from "./config";
@@ -180,7 +180,8 @@ export function createFirestoreStore(familyId: string): GuildStore {
 
   const watch = <T,>(key: "profiles" | "quests" | "rewards") =>
     onSnapshot(collection(fam, key), (snap) => {
-      state = { ...state, [key]: snap.docs.map((d) => d.data() as T) };
+      const list = snap.docs.map((d) => d.data() as T);
+      state = { ...state, [key]: key === "quests" ? (list as Quest[]).map(normalizeQuest) : list };
       emit();
     });
   unsubs.push(watch<Profile>("profiles"), watch<Quest>("quests"), watch<Reward>("rewards"));
@@ -243,7 +244,7 @@ export function createFirestoreStore(familyId: string): GuildStore {
           const col = ref.parent.id;
           if (col === "entries") fresh = applyMutations(fresh, [{ op: "putEntry", entry: data as Entry }]);
           else if (col === "profiles") fresh = applyMutations(fresh, [{ op: "putProfile", profile: data as Profile }]);
-          else if (col === "quests") fresh = applyMutations(fresh, [{ op: "putQuest", quest: data as Quest }]);
+          else if (col === "quests") fresh = applyMutations(fresh, [{ op: "putQuest", quest: normalizeQuest(data as Quest) }]);
           else if (col === "rewards") fresh = applyMutations(fresh, [{ op: "putReward", reward: data as Reward }]);
           else if (ref.id === "urgent") fresh = { ...fresh, urgent: (data.urgent as UrgentQuest | null) ?? null };
           else if (ref.id === "art") fresh = { ...fresh, art: data as GuildArt };

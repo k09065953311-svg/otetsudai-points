@@ -6,16 +6,18 @@ import {
   giveBonus,
   GuildError,
   issueUrgent,
+  normalizeQuest,
   rankOf,
   reportQuest,
   requestExchange,
   revoke,
+  saveQuest,
   sendBack,
   takeUrgent,
   weekStart
 } from "./rules";
 import { initialFamily } from "./seed";
-import type { FamilyState } from "./types";
+import type { FamilyState, Quest } from "./types";
 
 const NOW = new Date(2026, 9, 29, 18, 0).getTime(); // 2026-10-29(木) 18:00
 let n = 0;
@@ -220,5 +222,16 @@ describe("承認の取り消し", () => {
     s = run(s, reportQuest(s, "ritsu", "q-dishes", NOW, "w1"));
     expect(() => revoke(s, "w1", "papa", "", NOW)).toThrow(GuildError);
     expect(() => revoke(s, "b1", "ritsu", "", NOW)).toThrow(GuildError);
+  });
+});
+
+describe("クエストの分類", () => {
+  it("分類は手伝い・勉強・運動。昔の「生活」は手伝いとして扱う", () => {
+    const old = { id: "q-old", title: "朝の支度", category: "生活", reward: 10, dailyLimit: 1, visibleTo: [] } as unknown as Quest;
+    expect(normalizeQuest(old).category).toBe("手伝い");
+    const s = initialFamily();
+    expect(new Set(s.quests.map((q) => q.category))).toEqual(new Set(["手伝い", "勉強", "運動"]));
+    expect(() => saveQuest(s, "papa", old)).toThrow(GuildError);
+    expect(() => saveQuest(s, "papa", { ...old, category: "運動" })).not.toThrow();
   });
 });

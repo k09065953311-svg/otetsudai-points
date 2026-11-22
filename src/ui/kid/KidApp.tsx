@@ -11,7 +11,7 @@ import {
   rewardBlockReason,
   takeUrgent
 } from "../../domain/rules";
-import type { FamilyState, Quest } from "../../domain/types";
+import { QUEST_CATEGORIES, type FamilyState, type Quest } from "../../domain/types";
 import { GuildDoor } from "./GuildDoor";
 import { TitleScreen } from "./TitleScreen";
 import { Empty, EntryRow, GuildCard, Section, Tabs, UrgentPanel, useFeedback, useGuildState, useNow } from "../common";
@@ -139,7 +139,7 @@ function Home(props: Props) {
 
 function Board(props: Props) {
   const quests = questsFor(props.state, props.me);
-  const cats = ["手伝い", "勉強", "生活"] as const;
+  const cats = QUEST_CATEGORIES;
   return (
     <>
       <header className="board-hero">

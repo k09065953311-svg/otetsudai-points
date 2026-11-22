@@ -18,7 +18,9 @@ export const DEFAULT_QUESTS: Quest[] = [
   { id: "q-homework", title: "宿題を終える", category: "勉強", reward: 20, dailyLimit: 1, visibleTo: [] },
   { id: "q-study", title: "自主学習30分", category: "勉強", reward: 30, dailyLimit: 2, visibleTo: [] },
   { id: "q-book", title: "本を1冊読み切る", category: "勉強", reward: 50, dailyLimit: null, visibleTo: [] },
-  { id: "q-morning", title: "朝の支度を自分で", category: "生活", reward: 10, dailyLimit: 1, visibleTo: [] }
+  { id: "q-morning", title: "朝の支度を自分で", category: "手伝い", reward: 10, dailyLimit: 1, visibleTo: [] },
+  { id: "q-jump", title: "なわとび・ランニング10分", category: "運動", reward: 20, dailyLimit: 1, visibleTo: [] },
+  { id: "q-play", title: "外で体を動かして遊ぶ30分", category: "運動", reward: 20, dailyLimit: 1, visibleTo: [] }
 ];
 
 export const DEFAULT_REWARDS: Reward[] = [
