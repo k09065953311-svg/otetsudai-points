@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { GuildStore, Build } from "../data/store";
-import { GuildError, rankOf, reservedCoins, vaultOf, vaultReserved } from "../domain/rules";
-import type { Entry, FamilyState, Profile, UrgentQuest } from "../domain/types";
+import { exchangePending, GuildError, pendingDeposits, potOf, rankOf, reservedCoins } from "../domain/rules";
+import type { Entry, FamilyState, Profile, Reward, UrgentQuest } from "../domain/types";
 
 // ---- データ ----
 
@@ -229,8 +229,8 @@ const KIND_LABEL: Record<Entry["kind"], string> = {
   urgent: "緊急クエスト",
   shop: "交換",
   bonus: "ボーナス",
-  deposit: "金庫に貯金",
-  vaultShop: "金庫で交換"
+  deposit: "みんなのごほうびに入金",
+  vaultShop: "みんなのごほうびを交換"
 };
 
 export function EntryRow({
@@ -316,50 +316,64 @@ export function Sheet({ title, children, onClose }: { title: string; children: R
   );
 }
 
-/** パーティ金庫（3人の共同貯金）。残高・誰がいくら入れたか・最近の入出金 */
-export function VaultPanel({ state, now, action }: { state: FamilyState; now: number; action?: ReactNode }) {
-  const v = vaultOf(state);
+/** みんなのごほうび1つ。3人が少しずつ入金して「あと○G」。誰がいくら入れたかも出す */
+export function SharedRewardCard({ state, reward, now, action }: { state: FamilyState; reward: Reward; now: number; action?: ReactNode }) {
+  const pot = potOf(state, reward.id);
+  const pending = pendingDeposits(state, reward.id);
   const kids = state.profiles.filter((p) => p.role === "kid");
-  const total = kids.reduce((sum, k) => sum + (v.deposits[k.id] ?? 0), 0);
-  const reserved = vaultReserved(state);
+  const short = Math.max(0, reward.price - pot.balance);
+  const asking = exchangePending(state, reward.id);
+  const pct = (v: number) => `${Math.min(100, (v / reward.price) * 100)}%`;
   const history = state.entries
-    .filter((e) => (e.kind === "deposit" || e.kind === "vaultShop") && e.status !== "back")
+    .filter((e) => e.refId === reward.id && (e.kind === "deposit" || e.kind === "vaultShop") && e.status !== "back")
     .slice(-5)
     .reverse();
   return (
-    <section className="vault" aria-label="パーティ金庫">
-      <div className="vault-head">
+    <section className="pot" aria-label={`みんなのごほうび：${reward.title}`}>
+      <div className="pot-head">
         <div>
-          <span className="label">PARTY VAULT</span>
-          <h2>パーティ金庫</h2>
-          <span className="sub">3人の共同貯金・みんなのごほうびにだけ使えます</span>
+          <span className="label">みんなのごほうび</span>
+          <h3>{reward.title}</h3>
+          <span className="sub">
+            {reward.price.toLocaleString()} G{reward.note ? `・${reward.note}` : ""}
+          </span>
         </div>
-        <div className="vault-gold">
-          <b>{v.balance.toLocaleString()}</b>
-          <span>G</span>
+        <div className="pot-left">
+          {asking ? (
+            <b className="done">交換の申請中</b>
+          ) : short > 0 ? (
+            <>
+              <small>あと</small>
+              <b>{short.toLocaleString()}</b>
+              <small>G</small>
+            </>
+          ) : (
+            <b className="done">満額！</b>
+          )}
         </div>
       </div>
-      {reserved > 0 && <span className="vault-note">そのうち {reserved.toLocaleString()} G は交換の申請中</span>}
-      <div className="vault-bar" role="img" aria-label={`入れた G：${kids.map((k) => `${k.name} ${v.deposits[k.id] ?? 0} G`).join("、")}`}>
-        {total > 0 ? (
-          kids.map((k) => <i key={k.id} style={{ width: `${((v.deposits[k.id] ?? 0) / total) * 100}%`, background: k.color }} />)
-        ) : (
-          <span>まだ空っぽ。最初に入れるのは誰だ？</span>
-        )}
+      <div className="pot-bar" role="img" aria-label={`${reward.price} G のうち ${pot.balance} G 入っています`}>
+        {kids.map((k) => (
+          <i key={k.id} style={{ width: pct(pot.deposits[k.id] ?? 0), background: k.color }} />
+        ))}
+        {pending > 0 && <i className="pending" style={{ width: pct(pending) }} />}
       </div>
-      <ul className="vault-who">
+      <div className="pot-sum">
+        {pot.balance.toLocaleString()} / {reward.price.toLocaleString()} G{pending > 0 && `（承認待ち ${pending.toLocaleString()} G）`}
+      </div>
+      <ul className="pot-who">
         {kids.map((k) => (
           <li key={k.id}>
             <Crest p={k} />
             <span>{k.name}</span>
-            <b>{(v.deposits[k.id] ?? 0).toLocaleString()} G</b>
+            <b>{(pot.deposits[k.id] ?? 0).toLocaleString()} G</b>
           </li>
         ))}
       </ul>
       {action}
       {history.length > 0 && (
-        <details className="vault-log">
-          <summary>金庫の記録（最近の5件）</summary>
+        <details className="pot-log">
+          <summary>入金の記録（最近の5件）</summary>
           <div className="list">
             {history.map((e) => (
               <EntryRow key={e.id} e={e} state={state} now={now} showName />
