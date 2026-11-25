@@ -39,21 +39,16 @@ export interface Reward {
   /** 1週間に交換できる回数。null は上限なし */
   weeklyLimit: number | null;
   archived?: boolean;
-  /** みんなのごほうび: 3人が少しずつ入金して、満額になったら交換できる */
+  /** みんなのごほうび: パーティ金庫（3人の共同貯金）からだけ交換できる */
   shared?: boolean;
 }
 
-/** みんなのごほうび1つぶんの貯金箱。入れた G は戻せず、そのごほうびの交換にだけ使える */
-export interface Pot {
-  /** 今入っている G */
-  balance: number;
-  /** 子どもごとの、今回入れた G */
-  deposits: Record<string, number>;
-}
-
-/** みんなのごほうびの貯金箱（ごほうびの id ごと） */
+/** パーティ金庫（子どもたちの共同貯金）。入れた G は戻せず、みんなのごほうびの交換にだけ使える */
 export interface Vault {
-  pots: Record<string, Pot>;
+  /** 今金庫にある G */
+  balance: number;
+  /** 子どもごとの、これまでに入れた G の合計 */
+  deposits: Record<string, number>;
 }
 
 /** 緊急クエスト（時限ミッション）。同時に1つだけ */
@@ -70,7 +65,7 @@ export interface UrgentQuest {
   done: boolean;
 }
 
-/** deposit = みんなのごほうびへの入金 / vaultShop = 満額になったみんなのごほうびの交換 */
+/** deposit = パーティ金庫への貯金 / vaultShop = 金庫からのみんなのごほうび交換 */
 export type EntryKind = "quest" | "urgent" | "shop" | "bonus" | "deposit" | "vaultShop";
 export type EntryStatus = "wait" | "ok" | "back";
 
@@ -88,8 +83,6 @@ export interface Entry {
   decidedAt: number | null;
   decidedBy: string | null;
   comment: string | null;
-  /** みんなのごほうびを交換したとき、誰がいくら入れていたか（取り消しで戻すため） */
-  contributions?: Record<string, number> | null;
   /** 親が承認を取り消した時刻（取り消していなければ無し） */
   revokedAt?: number | null;
 }

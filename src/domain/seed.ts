@@ -30,7 +30,7 @@ export const DEFAULT_REWARDS: Reward[] = [
   { id: "r-money", title: "お小遣い500円", price: 500, note: "現金で受け取り", weeklyLimit: null },
   { id: "r-book", title: "好きな本を1冊", price: 800, note: "2000円まで", weeklyLimit: null },
   { id: "r-outing", title: "親と二人でお出かけ", price: 1500, note: "行き先は相談", weeklyLimit: null },
-  { id: "r-themepark", title: "家族で遊園地", price: 6000, note: "3人で入金しよう", weeklyLimit: null, shared: true }
+  { id: "r-themepark", title: "家族で遊園地", price: 6000, note: "3人の金庫で", weeklyLimit: null, shared: true }
 ];
 
 export function initialFamily(): FamilyState {
@@ -40,7 +40,7 @@ export function initialFamily(): FamilyState {
     rewards: DEFAULT_REWARDS.map((r) => ({ ...r })),
     entries: [],
     urgent: null,
-    vault: { pots: {} }
+    vault: { balance: 0, deposits: {} }
   };
 }
 
@@ -63,11 +63,11 @@ export function demoFamily(now: number): FamilyState {
     { id: "d4", profileId: "ritsu", kind: "quest", refId: "q-morning", title: "朝の支度を自分で", value: 10, status: "wait", createdAt: now - 2 * h, decidedAt: null, decidedBy: null, comment: null }
   ];
   const dep = (id: string, pid: string, value: number, hAgo: number) =>
-    s.entries.unshift({ id, profileId: pid, kind: "deposit", refId: "r-themepark", title: "「家族で遊園地」に入金", value, status: "ok", createdAt: now - hAgo * h, decidedAt: now - hAgo * h, decidedBy: "papa", comment: null });
+    s.entries.unshift({ id, profileId: pid, kind: "deposit", refId: null, title: "パーティ金庫へ貯金", value, status: "ok", createdAt: now - hAgo * h, decidedAt: now - hAgo * h, decidedBy: "papa", comment: null });
   dep("v1", "ruri", 1000, 72);
   dep("v2", "rei", 500, 50);
   dep("v3", "ritsu", 300, 30);
-  s.vault = { pots: { "r-themepark": { balance: 1800, deposits: { ruri: 1000, rei: 500, ritsu: 300 } } } };
+  s.vault = { balance: 1800, deposits: { ruri: 1000, rei: 500, ritsu: 300 } };
   s.urgent = { id: "u-demo", title: "夕飯までに玄関をピカピカにせよ", reward: 60, deadline: now + 100 * 60_000, issuedBy: "mama", takenBy: null, done: false };
   return s;
 }

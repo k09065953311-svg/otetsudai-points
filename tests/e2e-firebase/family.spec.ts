@@ -81,16 +81,16 @@ test("親と子の2台で、報告から交換まで", async ({ browser }) => {
   await expect(gold(kid)).toHaveText("55");
   await expect(kid.locator(".urgent")).toContainText("ルリが達成");
 
-  // 子: みんなのごほうびに入金（申請 → 親の承認。本物のルールとトランザクションで確認）
+  // 子: パーティ金庫に貯金（申請 → 親の承認で金庫へ。本物のルールとトランザクションで確認）
   await kid.getByRole("tab", { name: "交換所" }).click();
-  const park = kid.getByRole("region", { name: "みんなのごほうび：家族で遊園地" });
-  await park.getByRole("button", { name: "入金する" }).click();
-  await kid.getByLabel(/入金する G/).fill("20");
-  await kid.getByRole("dialog").getByRole("button", { name: "20 G を入金する" }).click();
+  await kid.getByRole("button", { name: "金庫に貯金する" }).click();
+  await kid.getByLabel(/貯金する G/).fill("20");
+  await kid.getByRole("dialog").getByRole("button", { name: "20 G を金庫に入れる" }).click();
   await expect(kid.locator(".sec", { hasText: "使える G" })).toContainText("使える G：35");
-  await parent.locator(".approve", { hasText: "みんなのごほうびへの入金" }).getByRole("button", { name: "承認する" }).click();
-  await expect(park).toContainText("あと5,980G");
-  await expect(park.locator(".pot-who li", { hasText: "ルリ" })).toContainText("20 G");
+  await parent.locator(".approve", { hasText: "パーティ金庫への貯金" }).getByRole("button", { name: "承認する" }).click();
+  const vault = kid.getByRole("region", { name: "パーティ金庫" });
+  await expect(vault.locator(".vault-gold")).toContainText("20");
+  await expect(vault.locator(".vault-who li", { hasText: "ルリ" })).toContainText("20 G");
 
   await parentCtx.close();
   await kidCtx.close();

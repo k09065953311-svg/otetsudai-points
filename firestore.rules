@@ -125,8 +125,8 @@ service cloud.firestore {
             && (
               (d.kind == 'quest' && get(/databases/$(database)/documents/families/$(fid)/quests/$(d.refId)).data.reward == d.value)
               || (d.kind == 'shop' && rewardOf(d.refId).price == d.value && rewardOf(d.refId).get('shared', false) == false)
-              // みんなのごほうびへの入金（G は親の承認で動く）と、満額になったときの交換申請
-              || (d.kind == 'deposit' && d.value > 0 && rewardOf(d.refId).get('shared', false) == true)
+              // パーティ金庫への貯金（G は親の承認で動く）と、みんなのごほうびの交換申請
+              || (d.kind == 'deposit' && d.refId == null && d.value > 0)
               || (d.kind == 'vaultShop' && rewardOf(d.refId).price == d.value && rewardOf(d.refId).get('shared', false) == true)
               || (d.kind == 'urgent' && urgentAfter.id == d.refId && urgentAfter.reward == d.value
                   && urgentAfter.takenBy == d.profileId)

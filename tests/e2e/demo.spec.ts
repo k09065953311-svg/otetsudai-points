@@ -134,51 +134,44 @@ test("子どもが開くとギルドのタイトル画面が出て、親が登�
   await expect(gold(page)).toHaveText("620");
 });
 
-test("みんなのごほうびに3人で入金し、満額になったら交換できる", async ({ page }) => {
+test("3人のパーティ金庫に貯金し、みんなのごほうびを金庫から交換できる", async ({ page }) => {
   // 親が「みんなのごほうび」を追加
   await switchTo(page, "父");
   await page.getByRole("tab", { name: "設定" }).click();
   await page.getByRole("button", { name: "ごほうびを追加" }).click();
   await page.getByLabel("ごほうび名").fill("みんなでボウリング");
-  await page.getByLabel("必要 G").fill("600");
+  await page.getByLabel("必要 G").fill("2000");
   await page.getByLabel(/みんなのごほうび/).check();
   await page.getByRole("button", { name: "保存する" }).click();
 
-  // ルリが 500 G を入金申請 → 親が承認
+  // ルリが 500 G を貯金申請 → 親が承認
   await switchTo(page, "ルリ");
   await page.getByRole("tab", { name: "交換所" }).click();
-  const bowling = page.getByRole("region", { name: "みんなのごほうび：みんなでボウリング" });
-  await expect(bowling).toContainText("あと600G");
-  await bowling.getByRole("button", { name: "入金する" }).click();
-  await page.getByLabel(/入金する G/).fill("500");
+  const vault = page.getByRole("region", { name: "パーティ金庫" });
+  await expect(vault).toContainText("1,800");
+  await expect(page.locator(".item", { hasText: "みんなでボウリング" })).toContainText("金庫にあと 200 G");
+  await page.getByRole("button", { name: "金庫に貯金する" }).click();
+  await page.getByLabel(/貯金する G/).fill("500");
   await expect(page.getByRole("dialog")).toContainText("自分に戻すことはできません");
-  await page.getByRole("dialog").getByRole("button", { name: "500 G を入金する" }).click();
-  await expect(page.getByRole("status")).toContainText("入金を申請しました");
-  await expect(page.locator(".sec", { hasText: "使える G" })).toContainText("使える G：740");
+  await page.getByRole("dialog").getByRole("button", { name: "500 G を金庫に入れる" }).click();
+  await expect(page.getByRole("status")).toContainText("貯金を申請しました");
+  await expect(page.locator(".sec", { hasText: "交換所" })).toContainText("使える G：740");
 
   await switchTo(page, "母");
-  await page.locator(".approve", { hasText: "みんなのごほうびへの入金" }).getByRole("button", { name: "承認する" }).click();
-  await expect(page.getByRole("status")).toContainText("ルリの 500 G を入金しました");
+  await page.locator(".approve", { hasText: "パーティ金庫への貯金" }).getByRole("button", { name: "承認する" }).click();
+  await expect(page.getByRole("status")).toContainText("ルリの 500 G を金庫に入れました");
 
-  // レイが残り 100 G を入れて満額 → 交換申請 → 親が渡す
+  // レイが金庫からボウリングを申請 → 親が渡す
   await switchTo(page, "レイ");
   await page.getByRole("tab", { name: "交換所" }).click();
-  await expect(bowling).toContainText("あと100G");
-  await expect(bowling.locator(".pot-who li", { hasText: "ルリ" })).toContainText("500 G");
-  await bowling.getByRole("button", { name: "入金する" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "満額まで" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "100 G を入金する" }).click();
-  await switchTo(page, "父");
-  await page.locator(".approve", { hasText: "みんなのごほうびへの入金" }).getByRole("button", { name: "承認する" }).click();
-  await switchTo(page, "レイ");
-  await page.getByRole("tab", { name: "交換所" }).click();
-  await expect(bowling).toContainText("満額！");
-  await bowling.getByRole("button", { name: "満額！交換を申請する" }).click();
+  await expect(vault).toContainText("2,300");
+  await expect(vault.locator(".vault-who li", { hasText: "ルリ" })).toContainText("1,500 G");
+  await page.locator(".item", { hasText: "みんなでボウリング" }).getByRole("button", { name: "金庫から交換を申請" }).click();
   await switchTo(page, "父");
   await page.locator(".approve", { hasText: "みんなでボウリング" }).getByRole("button", { name: "渡した" }).click();
-  await expect(page.getByRole("status")).toContainText("みんなのごほうび「みんなでボウリング」を交換しました");
+  await expect(page.getByRole("status")).toContainText("パーティ金庫から「みんなでボウリング」を交換しました");
   await page.getByRole("tab", { name: "冒険者" }).click();
-  await expect(page.getByRole("region", { name: "みんなのごほうび：みんなでボウリング" })).toContainText("あと600G");
+  await expect(page.getByRole("region", { name: "パーティ金庫" })).toContainText("300");
 });
 
 test("画面が横にはみ出さない", async ({ page }) => {

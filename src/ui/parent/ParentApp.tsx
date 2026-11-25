@@ -14,7 +14,7 @@ import {
   sendBack
 } from "../../domain/rules";
 import { QUEST_CATEGORIES, type Entry, type FamilyState, type Quest, type Reward } from "../../domain/types";
-import { Crest, Empty, EntryRow, Section, SharedRewardCard, Sheet, Tabs, UrgentPanel, timeLabel, useFeedback, useGuildState, useNow } from "../common";
+import { Crest, Empty, EntryRow, Section, Sheet, Tabs, VaultPanel, UrgentPanel, timeLabel, useFeedback, useGuildState, useNow } from "../common";
 import { imageToDataUrl } from "../image";
 import { ART_ROLES, Portrait, type ArtSlot } from "../Portrait";
 
@@ -80,9 +80,9 @@ function Check({ store, state, me, now }: Props) {
       e.kind === "shop"
         ? `${name(e.profileId)}に「${e.title}」を渡しました`
         : e.kind === "vaultShop"
-          ? `みんなのごほうび「${e.title}」を交換しました`
+          ? `パーティ金庫から「${e.title}」を交換しました`
           : e.kind === "deposit"
-            ? `${name(e.profileId)}の ${e.value} G を入金しました`
+            ? `${name(e.profileId)}の ${e.value} G を金庫に入れました`
             : `${name(e.profileId)}に ${e.value} G を付与しました`,
       e.kind !== "shop"
     );
@@ -109,8 +109,8 @@ function Check({ store, state, me, now }: Props) {
           if (!kid) return null;
           const kind = {
             shop: "ごほうびの交換申請",
-            vaultShop: "みんなのごほうびの交換申請（満額）",
-            deposit: "みんなのごほうびへの入金（戻せません）",
+            vaultShop: "パーティ金庫での交換申請（みんなのごほうび）",
+            deposit: "パーティ金庫への貯金（戻せません）",
             urgent: "緊急クエストの達成報告",
             quest: "クエストの達成報告",
             bonus: "ボーナス"
@@ -216,18 +216,7 @@ function Kids({ store, state, me, now, extra }: Props & { extra?: ReactNode }) {
           </div>
         ))}
       </div>
-      {state.rewards.some((r) => r.shared && !r.archived) && (
-        <>
-          <Section title="みんなのごほうび" aside="3人の入金状況" />
-          <div className="pots">
-            {state.rewards
-              .filter((r) => r.shared && !r.archived)
-              .map((r) => (
-                <SharedRewardCard key={r.id} state={state} reward={r} now={now} />
-              ))}
-          </div>
-        </>
-      )}
+      <VaultPanel state={state} now={now} />
       {extra}
       <Section title="最近の記録" aside={`${recent.length} 件`} />
       <div className="list">
@@ -264,9 +253,9 @@ function Kids({ store, state, me, now, extra }: Props & { extra?: ReactNode }) {
               {undo.kind === "shop"
                 ? `払った ${undo.value} G が戻ります。`
                 : undo.kind === "deposit"
-                  ? `入金した ${undo.value} G を本人に戻します。`
+                  ? `金庫から ${undo.value} G を本人に戻します。`
                   : undo.kind === "vaultShop"
-                    ? `${undo.value} G がみんなのごほうびに戻ります。`
+                    ? `金庫に ${undo.value} G が戻ります。`
                     : `付けた ${undo.value} G が減ります。`}
             </span>
             <label htmlFor="undo-reason">
@@ -281,7 +270,7 @@ function Kids({ store, state, me, now, extra }: Props & { extra?: ReactNode }) {
                 await fb.run(
                   store,
                   (s) => revoke(s, e.id, me, undoReason, Date.now()),
-                  e.kind === "shop" || e.kind === "deposit" ? `${e.value} G を${nameOf(e.profileId)}に戻しました` : e.kind === "vaultShop" ? `${e.value} G をみんなのごほうびに戻しました` : `${nameOf(e.profileId)}の ${e.value} G を取り消しました`
+                  e.kind === "shop" || e.kind === "deposit" ? `${e.value} G を${nameOf(e.profileId)}に戻しました` : e.kind === "vaultShop" ? `${e.value} G を金庫に戻しました` : `${nameOf(e.profileId)}の ${e.value} G を取り消しました`
                 );
               }}
             >
@@ -569,7 +558,7 @@ function RewardForm({ reward, onSave }: { reward: Reward; onSave(r: Reward): voi
       </div>
       <label className="check">
         <input type="checkbox" checked={!!r.shared} onChange={(e) => setR({ ...r, shared: e.target.checked })} />
-        みんなのごほうび（3人で少しずつ入金して、満額で交換）
+        みんなのごほうび（3人のパーティ金庫からだけ交換できる）
       </label>
       <label htmlFor="r-note">
         ひと言メモ（子どもに表示）
