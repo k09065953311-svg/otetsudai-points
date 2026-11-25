@@ -7,14 +7,17 @@ import {
   questBlockReason,
   questsFor,
   reportQuest,
+  requestDeposit,
   requestExchange,
+  requestVaultExchange,
   rewardBlockReason,
+  vaultRewardBlockReason,
   takeUrgent
 } from "../../domain/rules";
 import { QUEST_CATEGORIES, type FamilyState, type Quest } from "../../domain/types";
 import { GuildDoor } from "./GuildDoor";
 import { TitleScreen } from "./TitleScreen";
-import { Empty, EntryRow, GuildCard, Section, Tabs, UrgentPanel, useFeedback, useGuildState, useNow } from "../common";
+import { Empty, EntryRow, GuildCard, Section, Sheet, Tabs, UrgentPanel, VaultPanel, useFeedback, useGuildState, useNow } from "../common";
 
 type Tab = "home" | "board" | "shop" | "log";
 
@@ -168,9 +171,49 @@ function Board(props: Props) {
 function Shop({ store, state, me, now }: Props) {
   const fb = useFeedback();
   const can = availableCoins(state, me);
-  const rewards = state.rewards.filter((r) => !r.archived).sort((a, b) => a.price - b.price);
+  const live = state.rewards.filter((r) => !r.archived).sort((a, b) => a.price - b.price);
+  const rewards = live.filter((r) => !r.shared);
+  const shared = live.filter((r) => r.shared);
+  const [saving, setSaving] = useState(false);
+  const [amount, setAmount] = useState(10);
+  const kidsCount = state.profiles.filter((p) => p.role === "kid").length;
   return (
     <>
+      <VaultPanel
+        state={state}
+        now={now}
+        action={
+          <button className="btn btn-gold" disabled={can <= 0} onClick={() => { setAmount(Math.min(can, 50)); setSaving(true); }}>
+            金庫に貯金する
+          </button>
+        }
+      />
+      {shared.length > 0 && (
+        <>
+          <Section title="みんなのごほうび" aside={`${kidsCount}人の金庫で交換`} />
+          <div className="shop">
+            {shared.map((r) => {
+              const blocked = vaultRewardBlockReason(state, r, now);
+              return (
+                <div className="item item-shared" key={r.id}>
+                  <h3>{r.title}</h3>
+                  <span className="price">{r.price.toLocaleString()} G</span>
+                  <span className="short">{blocked ?? r.note}</span>
+                  <button
+                    className={blocked ? "btn btn-ghost" : "btn btn-gold"}
+                    disabled={!!blocked}
+                    onClick={() =>
+                      fb.run(store, (s) => requestVaultExchange(s, me, r.id, Date.now(), newId("x")), `金庫の ${r.price} G で申請しました。親に渡してもらおう`, true)
+                    }
+                  >
+                    金庫から交換を申請
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
       <Section title="交換所" aside={`使える G：${can.toLocaleString()}`} />
       <div className="shop">
         {rewards.map((r) => {
@@ -194,6 +237,38 @@ function Shop({ store, state, me, now }: Props) {
         })}
       </div>
       <div className="note">申請すると G が予約され、親が渡した時点で確定します。</div>
+      {saving && (
+        <Sheet title="パーティ金庫に貯金" onClose={() => setSaving(false)}>
+          <form
+            className="form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (await fb.run(store, (s) => requestDeposit(s, me, amount, Date.now(), newId("v")), `${amount} G の貯金を申請しました。親の承認で金庫に入るよ`)) setSaving(false);
+            }}
+          >
+            <div className="seg">
+              {[10, 50, 100].filter((v) => v < can).map((v) => (
+                <button key={v} type="button" aria-pressed={amount === v} onClick={() => setAmount(v)}>
+                  {v} G
+                </button>
+              ))}
+              <button type="button" aria-pressed={amount === can} onClick={() => setAmount(can)}>
+                全部
+              </button>
+            </div>
+            <label htmlFor="deposit-amount">
+              貯金する G（使える G：{can.toLocaleString()}）
+              <input id="deposit-amount" type="number" inputMode="numeric" min={1} max={can} value={amount} onChange={(e) => setAmount(Math.floor(Number(e.target.value)))} />
+            </label>
+            <div className="warn">
+              一度金庫に入れた G は、自分に戻すことはできません。3人の「みんなのごほうび」の交換にだけ使えます。
+            </div>
+            <button className="btn btn-gold" type="submit" disabled={!(amount >= 1 && amount <= can)}>
+              {amount > 0 ? `${amount.toLocaleString()} G を金庫に入れる` : "金庫に入れる"}
+            </button>
+          </form>
+        </Sheet>
+      )}
     </>
   );
 }

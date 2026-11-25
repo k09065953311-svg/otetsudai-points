@@ -39,6 +39,16 @@ export interface Reward {
   /** 1週間に交換できる回数。null は上限なし */
   weeklyLimit: number | null;
   archived?: boolean;
+  /** みんなのごほうび: パーティ金庫（3人の共同貯金）からだけ交換できる */
+  shared?: boolean;
+}
+
+/** パーティ金庫（子どもたちの共同貯金）。入れた G は戻せず、みんなのごほうびの交換にだけ使える */
+export interface Vault {
+  /** 今金庫にある G */
+  balance: number;
+  /** 子どもごとの、これまでに入れた G の合計 */
+  deposits: Record<string, number>;
 }
 
 /** 緊急クエスト（時限ミッション）。同時に1つだけ */
@@ -55,7 +65,8 @@ export interface UrgentQuest {
   done: boolean;
 }
 
-export type EntryKind = "quest" | "urgent" | "shop" | "bonus";
+/** deposit = パーティ金庫への貯金 / vaultShop = 金庫からのみんなのごほうび交換 */
+export type EntryKind = "quest" | "urgent" | "shop" | "bonus" | "deposit" | "vaultShop";
 export type EntryStatus = "wait" | "ok" | "back";
 
 /** 報告・交換・ボーナスの記録。G の増減はすべてこの記録の承認で起きる */
@@ -91,4 +102,5 @@ export interface FamilyState {
   entries: Entry[];
   urgent: UrgentQuest | null;
   art?: GuildArt | null;
+  vault?: Vault | null;
 }

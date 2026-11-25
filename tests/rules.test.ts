@@ -127,6 +127,27 @@ describe("子どもの報告", () => {
   });
 });
 
+describe("パーティ金庫（共同貯金）", () => {
+  const E = () => doc(as("u-ruri"), "families", F, "entries", "e1");
+  it("子どもは自分の名前で貯金を申請できる（承認待ちだけ）", async () => {
+    await assertSucceeds(setDoc(E(), entry({ kind: "deposit", refId: null, title: "パーティ金庫へ貯金", value: 300 })));
+  });
+  it("貯金を最初から承認済みにしたり、0 G で申請したりはできない", async () => {
+    await assertFails(setDoc(E(), entry({ kind: "deposit", refId: null, value: 300, status: "ok" })));
+    await assertFails(setDoc(E(), entry({ kind: "deposit", refId: null, value: 0 })));
+  });
+  it("みんなのごほうびは金庫からの交換申請だけ。個人の交換としては申請できない", async () => {
+    await assertSucceeds(setDoc(E(), entry({ kind: "vaultShop", refId: "r-themepark", title: "家族で遊園地", value: 6000 })));
+    await assertFails(setDoc(doc(as("u-ruri"), "families", F, "entries", "e2"), entry({ id: "e2", kind: "shop", refId: "r-themepark", value: 6000 })));
+    await assertFails(setDoc(doc(as("u-ruri"), "families", F, "entries", "e3"), entry({ id: "e3", kind: "vaultShop", refId: "r-snack", value: 100 })));
+  });
+  it("子どもは金庫の中身を書き換えられない（出金できない）", async () => {
+    await assertFails(setDoc(doc(as("u-ruri"), "families", F, "meta", "vault"), { balance: 0, deposits: { ruri: 0 } }));
+    await assertSucceeds(setDoc(doc(as("u-mama"), "families", F, "meta", "vault"), { balance: 100, deposits: { ruri: 100 } }));
+    await assertSucceeds(getDoc(doc(as("u-rei"), "families", F, "meta", "vault")));
+  });
+});
+
 describe("緊急クエスト", () => {
   const take = (uid: string, profileId: string, id: string) => {
     const db = as(uid);
