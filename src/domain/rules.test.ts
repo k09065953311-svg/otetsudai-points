@@ -9,11 +9,15 @@ import {
   normalizeQuest,
   rankOf,
   reportQuest,
+  requestDeposit,
   requestExchange,
+  requestVaultExchange,
   revoke,
   saveQuest,
   sendBack,
   takeUrgent,
+  vaultAvailable,
+  vaultOf,
   weekStart
 } from "./rules";
 import { initialFamily } from "./seed";
@@ -233,5 +237,65 @@ describe("クエストの分類", () => {
     expect(new Set(s.quests.map((q) => q.category))).toEqual(new Set(["手伝い", "勉強", "運動"]));
     expect(() => saveQuest(s, "papa", old)).toThrow(GuildError);
     expect(() => saveQuest(s, "papa", { ...old, category: "運動" })).not.toThrow();
+  });
+});
+
+describe("パーティ金庫（3人の共同貯金）", () => {
+  function family() {
+    const s = initialFamily();
+    for (const [pid, v] of [["ruri", 3000], ["rei", 2000], ["ritsu", 1500]] as const) {
+      const p = s.profiles.find((x) => x.id === pid)!;
+      p.coins = v;
+      p.total = v;
+    }
+    return s;
+  }
+  const park = "r-themepark";
+
+  it("貯金は申請で予約され、親の承認で金庫に入る。誰がいくら入れたか残る", () => {
+    let s = family();
+    s = run(s, requestDeposit(s, "ruri", 2500, NOW, "d1"));
+    expect(availableCoins(s, "ruri")).toBe(500);
+    expect(vaultOf(s).balance).toBe(0);
+    s = run(s, approve(s, "d1", "papa", NOW));
+    s = run(s, requestDeposit(s, "rei", 2000, NOW, "d2"));
+    s = run(s, approve(s, "d2", "mama", NOW));
+    expect(coins(s, "ruri")).toMatchObject({ coins: 500, total: 3000 });
+    expect(vaultOf(s)).toEqual({ balance: 4500, deposits: { ruri: 2500, rei: 2000 } });
+  });
+
+  it("使える G より多くは貯金できない", () => {
+    const s = family();
+    expect(() => requestDeposit(s, "ritsu", 1501, NOW, "d1")).toThrow(GuildError);
+    expect(() => requestDeposit(s, "ritsu", 0, NOW, "d1")).toThrow(GuildError);
+  });
+
+  it("みんなのごほうびは金庫からだけ交換でき、親が渡すと金庫から引かれる", () => {
+    let s = family();
+    expect(() => requestExchange(s, "ruri", park, NOW, "x0")).toThrow(GuildError);
+    expect(() => requestVaultExchange(s, "ruri", park, NOW, "x1")).toThrow(/金庫にあと 6,000 G/);
+    for (const [id, pid, v] of [["d1", "ruri", 3000], ["d2", "rei", 2000], ["d3", "ritsu", 1000]] as const) {
+      s = run(s, requestDeposit(s, pid, v, NOW, id));
+      s = run(s, approve(s, id, "papa", NOW));
+    }
+    s = run(s, requestVaultExchange(s, "ritsu", park, NOW, "x1"));
+    expect(vaultAvailable(s)).toBe(0);
+    expect(() => requestVaultExchange(s, "rei", park, NOW, "x2")).toThrow(GuildError);
+    s = run(s, approve(s, "x1", "mama", NOW));
+    expect(vaultOf(s).balance).toBe(0);
+    // 入れた記録（誰がいくら）は残る
+    expect(vaultOf(s).deposits).toEqual({ ruri: 3000, rei: 2000, ritsu: 1000 });
+    // 個人の交換は金庫の G を使わない
+    expect(() => requestVaultExchange(s, "rei", "r-snack", NOW, "x3")).toThrow(GuildError);
+  });
+
+  it("金庫から個人に出金する操作はなく、取り消しは親だけ・交換に使われた分は戻せない", () => {
+    let s = family();
+    s = run(s, requestDeposit(s, "rei", 1000, NOW, "d1"));
+    s = run(s, approve(s, "d1", "papa", NOW));
+    expect(() => revoke(s, "d1", "rei", "", NOW)).toThrow(GuildError);
+    s = run(s, revoke(s, "d1", "papa", "押し間違い", NOW));
+    expect(coins(s, "rei").coins).toBe(2000);
+    expect(vaultOf(s)).toEqual({ balance: 0, deposits: { rei: 0 } });
   });
 });

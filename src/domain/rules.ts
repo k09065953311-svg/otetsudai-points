@@ -3,7 +3,7 @@
 // 各操作は「何をどう書き換えるか」(Mutation の一覧) を返す。
 // お試しモードはそれを手元の状態に、Firebase モードは Firestore に適用する。
 
-import { QUEST_CATEGORIES, type Entry, type FamilyState, type GuildArt, type Profile, type Quest, type QuestCategory, type Reward, type UrgentQuest } from "./types";
+import { QUEST_CATEGORIES, type Entry, type FamilyState, type GuildArt, type Profile, type Quest, type QuestCategory, type Reward, type UrgentQuest, type Vault } from "./types";
 
 export class GuildError extends Error {}
 
@@ -13,7 +13,8 @@ export type Mutation =
   | { op: "putQuest"; quest: Quest }
   | { op: "putReward"; reward: Reward }
   | { op: "putUrgent"; urgent: UrgentQuest | null }
-  | { op: "putArt"; art: GuildArt };
+  | { op: "putArt"; art: GuildArt }
+  | { op: "putVault"; vault: Vault };
 
 // ---- ランク ----
 
@@ -59,16 +60,47 @@ export function weekStart(ts: number): number {
 
 // ---- 残高 ----
 
-/** 交換申請中（親がまだ渡していない）G の合計 */
+/** 交換申請中・貯金申請中（親がまだ承認していない）G の合計 */
 export function reservedCoins(state: FamilyState, profileId: string): number {
   return state.entries
-    .filter((e) => e.profileId === profileId && e.kind === "shop" && e.status === "wait")
+    .filter((e) => e.profileId === profileId && (e.kind === "shop" || e.kind === "deposit") && e.status === "wait")
     .reduce((sum, e) => sum + e.value, 0);
 }
 
 /** 今使える G = 所持 G − 予約中の G */
 export function availableCoins(state: FamilyState, profileId: string): number {
   return findProfile(state, profileId).coins - reservedCoins(state, profileId);
+}
+
+// ---- パーティ金庫（共同貯金） ----
+
+export function vaultOf(state: FamilyState): Vault {
+  return { balance: state.vault?.balance ?? 0, deposits: { ...(state.vault?.deposits ?? {}) } };
+}
+
+/** 金庫からの交換申請中（親がまだ渡していない）G */
+export function vaultReserved(state: FamilyState): number {
+  return state.entries.filter((e) => e.kind === "vaultShop" && e.status === "wait").reduce((sum, e) => sum + e.value, 0);
+}
+
+/** 金庫で今使える G */
+export function vaultAvailable(state: FamilyState): number {
+  return vaultOf(state).balance - vaultReserved(state);
+}
+
+/** 今週、金庫からこのごほうびを交換（申請中を含む）した回数。3人の合計で数える */
+export function vaultExchangesThisWeek(state: FamilyState, rewardId: string, now: number): number {
+  const from = weekStart(now);
+  return state.entries.filter((e) => e.kind === "vaultShop" && e.refId === rewardId && e.status !== "back" && e.createdAt >= from).length;
+}
+
+export function vaultRewardBlockReason(state: FamilyState, reward: Reward, now: number): string | null {
+  const short = reward.price - vaultAvailable(state);
+  if (short > 0) return `金庫にあと ${short.toLocaleString()} G`;
+  if (reward.weeklyLimit !== null && vaultExchangesThisWeek(state, reward.id, now) >= reward.weeklyLimit) {
+    return `今週はもう${reward.weeklyLimit}回交換しました`;
+  }
+  return null;
 }
 
 // ---- 参照 ----
@@ -199,6 +231,7 @@ export function requestExchange(state: FamilyState, kidId: string, rewardId: str
   findKid(state, kidId);
   const reward = state.rewards.find((r) => r.id === rewardId && !r.archived);
   if (!reward) throw new GuildError("このごほうびは交換できません");
+  if (reward.shared) throw new GuildError("みんなのごほうびは、パーティ金庫から交換します");
   const reason = rewardBlockReason(state, kidId, reward, now);
   if (reason) throw new GuildError(reason);
   return [
@@ -206,6 +239,28 @@ export function requestExchange(state: FamilyState, kidId: string, rewardId: str
       op: "putEntry",
       entry: newEntry({ id, profileId: kidId, kind: "shop", refId: reward.id, title: reward.title, value: reward.price, createdAt: now })
     }
+  ];
+}
+
+/** パーティ金庫に貯金を申請する。G は予約され、親が承認した時点で金庫に入る（もう自分には戻らない） */
+export function requestDeposit(state: FamilyState, kidId: string, value: number, now: number, id: string): Mutation[] {
+  findKid(state, kidId);
+  if (!Number.isInteger(value) || value <= 0) throw new GuildError("貯金する G を1以上の整数で入れてください");
+  if (value > availableCoins(state, kidId)) throw new GuildError(`使える G が足りません（使える G：${availableCoins(state, kidId)}）`);
+  return [
+    { op: "putEntry", entry: newEntry({ id, profileId: kidId, kind: "deposit", refId: null, title: "パーティ金庫へ貯金", value, createdAt: now }) }
+  ];
+}
+
+/** みんなのごほうびを、パーティ金庫の G で交換申請する（3人のうち誰でも申請できる） */
+export function requestVaultExchange(state: FamilyState, kidId: string, rewardId: string, now: number, id: string): Mutation[] {
+  findKid(state, kidId);
+  const reward = state.rewards.find((r) => r.id === rewardId && !r.archived && r.shared);
+  if (!reward) throw new GuildError("このごほうびは金庫から交換できません");
+  const reason = vaultRewardBlockReason(state, reward, now);
+  if (reason) throw new GuildError(reason);
+  return [
+    { op: "putEntry", entry: newEntry({ id, profileId: kidId, kind: "vaultShop", refId: reward.id, title: reward.title, value: reward.price, createdAt: now }) }
   ];
 }
 
@@ -218,6 +273,26 @@ export function approve(state: FamilyState, entryId: string, parentId: string, n
   if (e.status !== "wait") throw new GuildError("この記録はもう処理されています");
   const kid = findProfile(state, e.profileId);
   const decided: Entry = { ...e, status: "ok", decidedAt: now, decidedBy: parentId };
+  if (e.kind === "deposit") {
+    if (kid.coins < e.value) throw new GuildError(`${kid.name}の G が足りません`);
+    const v = vaultOf(state);
+    return [
+      { op: "putEntry", entry: decided },
+      { op: "putProfile", profile: { ...kid, coins: kid.coins - e.value } },
+      {
+        op: "putVault",
+        vault: { balance: v.balance + e.value, deposits: { ...v.deposits, [kid.id]: (v.deposits[kid.id] ?? 0) + e.value } }
+      }
+    ];
+  }
+  if (e.kind === "vaultShop") {
+    const v = vaultOf(state);
+    if (v.balance < e.value) throw new GuildError("パーティ金庫の G が足りません");
+    return [
+      { op: "putEntry", entry: decided },
+      { op: "putVault", vault: { ...v, balance: v.balance - e.value } }
+    ];
+  }
   if (e.kind === "shop") {
     if (kid.coins < e.value) throw new GuildError(`${kid.name}の G が足りません`);
     return [
@@ -260,6 +335,27 @@ export function revoke(state: FamilyState, entryId: string, parentId: string, re
   const kid = findProfile(state, e.profileId);
   const note = reason.trim() ? `承認取り消し：${reason.trim()}` : "承認取り消し";
   const revoked: Entry = { ...e, status: "back", comment: note, revokedAt: now, decidedBy: parentId };
+  if (e.kind === "vaultShop") {
+    const v = vaultOf(state);
+    return [
+      { op: "putEntry", entry: revoked },
+      { op: "putVault", vault: { ...v, balance: v.balance + e.value } }
+    ];
+  }
+  if (e.kind === "deposit") {
+    const v = vaultOf(state);
+    if (v.balance - e.value < vaultReserved(state)) {
+      throw new GuildError("金庫の G がもう交換に使われているので取り消せません");
+    }
+    return [
+      { op: "putEntry", entry: revoked },
+      { op: "putProfile", profile: { ...kid, coins: kid.coins + e.value } },
+      {
+        op: "putVault",
+        vault: { balance: v.balance - e.value, deposits: { ...v.deposits, [kid.id]: Math.max(0, (v.deposits[kid.id] ?? 0) - e.value) } }
+      }
+    ];
+  }
   if (e.kind === "shop") {
     return [
       { op: "putEntry", entry: revoked },
@@ -402,6 +498,9 @@ export function applyMutations(state: FamilyState, muts: Mutation[]): FamilyStat
         break;
       case "putArt":
         s = { ...s, art: m.art };
+        break;
+      case "putVault":
+        s = { ...s, vault: m.vault };
         break;
     }
   }

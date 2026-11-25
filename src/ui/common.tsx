@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { GuildStore, Build } from "../data/store";
-import { GuildError, rankOf, reservedCoins } from "../domain/rules";
+import { GuildError, rankOf, reservedCoins, vaultOf, vaultReserved } from "../domain/rules";
 import type { Entry, FamilyState, Profile, UrgentQuest } from "../domain/types";
 
 // ---- データ ----
@@ -224,6 +224,15 @@ export function timeLabel(ts: number, now: number): string {
   return `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
 }
 
+const KIND_LABEL: Record<Entry["kind"], string> = {
+  quest: "クエスト",
+  urgent: "緊急クエスト",
+  shop: "交換",
+  bonus: "ボーナス",
+  deposit: "金庫に貯金",
+  vaultShop: "金庫で交換"
+};
+
 export function EntryRow({
   e,
   state,
@@ -238,15 +247,16 @@ export function EntryRow({
   action?: ReactNode;
 }) {
   const who = state.profiles.find((p) => p.id === e.profileId);
+  const exchange = e.kind === "shop" || e.kind === "vaultShop";
   const pill =
     e.status === "wait"
       ? ["p-wait", "承認待ち"]
       : e.status === "ok"
-        ? ["p-ok", e.kind === "shop" ? "交換済み" : e.kind === "bonus" ? "ボーナス" : "承認"]
+        ? ["p-ok", exchange ? "交換済み" : e.kind === "deposit" ? "貯金済み" : e.kind === "bonus" ? "ボーナス" : "承認"]
         : e.revokedAt
           ? ["p-back", "取り消し"]
-          : ["p-back", e.kind === "shop" ? "キャンセル" : "差し戻し"];
-  const minus = e.kind === "shop";
+          : ["p-back", exchange ? "キャンセル" : "差し戻し"];
+  const minus = exchange || e.kind === "deposit";
   return (
     <div className="log">
       <div style={{ minWidth: 0 }}>
@@ -255,7 +265,7 @@ export function EntryRow({
           {e.title}
         </div>
         <div className="s">
-          {e.kind === "shop" ? "交換" : e.kind === "bonus" ? "ボーナス" : "クエスト"}・{timeLabel(e.createdAt, now)}
+          {KIND_LABEL[e.kind]}・{timeLabel(e.createdAt, now)}
           {e.comment ? `・「${e.comment}」` : ""}
         </div>
         {e.status === "ok" && e.kind !== "bonus" && e.decidedBy && <Approver state={state} id={e.decidedBy} />}
@@ -263,7 +273,7 @@ export function EntryRow({
       <div style={{ display: "grid", justifyItems: "end", gap: 2 }}>
         <span className="v" style={{ color: minus ? "var(--ink-dim)" : "var(--brass)" }}>
           {minus ? "−" : "+"}
-          {e.value}
+          {e.value.toLocaleString()}
         </span>
         <span className={`pill ${pill[0]}`}>{pill[1]}</span>
         {action}
@@ -287,4 +297,76 @@ function Approver({ state, id }: { state: FamilyState; id: string }) {
 
 export function Empty({ children }: { children: ReactNode }) {
   return <div className="empty">{children}</div>;
+}
+
+/** 下から出てくる確認・入力用のシート */
+export function Sheet({ title, children, onClose }: { title: string; children: ReactNode; onClose(): void }) {
+  return (
+    <div className="sheet-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label={title}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <h2>{title}</h2>
+          <button type="button" className="mini" onClick={onClose}>
+            閉じる
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** パーティ金庫（3人の共同貯金）。残高・誰がいくら入れたか・最近の入出金 */
+export function VaultPanel({ state, now, action }: { state: FamilyState; now: number; action?: ReactNode }) {
+  const v = vaultOf(state);
+  const kids = state.profiles.filter((p) => p.role === "kid");
+  const total = kids.reduce((sum, k) => sum + (v.deposits[k.id] ?? 0), 0);
+  const reserved = vaultReserved(state);
+  const history = state.entries
+    .filter((e) => (e.kind === "deposit" || e.kind === "vaultShop") && e.status !== "back")
+    .slice(-5)
+    .reverse();
+  return (
+    <section className="vault" aria-label="パーティ金庫">
+      <div className="vault-head">
+        <div>
+          <span className="label">PARTY VAULT</span>
+          <h2>パーティ金庫</h2>
+          <span className="sub">3人の共同貯金・みんなのごほうびにだけ使えます</span>
+        </div>
+        <div className="vault-gold">
+          <b>{v.balance.toLocaleString()}</b>
+          <span>G</span>
+        </div>
+      </div>
+      {reserved > 0 && <span className="vault-note">そのうち {reserved.toLocaleString()} G は交換の申請中</span>}
+      <div className="vault-bar" role="img" aria-label={`入れた G：${kids.map((k) => `${k.name} ${v.deposits[k.id] ?? 0} G`).join("、")}`}>
+        {total > 0 ? (
+          kids.map((k) => <i key={k.id} style={{ width: `${((v.deposits[k.id] ?? 0) / total) * 100}%`, background: k.color }} />)
+        ) : (
+          <span>まだ空っぽ。最初に入れるのは誰だ？</span>
+        )}
+      </div>
+      <ul className="vault-who">
+        {kids.map((k) => (
+          <li key={k.id}>
+            <Crest p={k} />
+            <span>{k.name}</span>
+            <b>{(v.deposits[k.id] ?? 0).toLocaleString()} G</b>
+          </li>
+        ))}
+      </ul>
+      {action}
+      {history.length > 0 && (
+        <details className="vault-log">
+          <summary>金庫の記録（最近の5件）</summary>
+          <div className="list">
+            {history.map((e) => (
+              <EntryRow key={e.id} e={e} state={state} now={now} showName />
+            ))}
+          </div>
+        </details>
+      )}
+    </section>
+  );
 }

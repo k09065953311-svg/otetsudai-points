@@ -14,7 +14,7 @@ import {
   sendBack
 } from "../../domain/rules";
 import { QUEST_CATEGORIES, type Entry, type FamilyState, type Quest, type Reward } from "../../domain/types";
-import { Crest, Empty, EntryRow, Section, Tabs, UrgentPanel, timeLabel, useFeedback, useGuildState, useNow } from "../common";
+import { Crest, Empty, EntryRow, Section, Sheet, Tabs, VaultPanel, UrgentPanel, timeLabel, useFeedback, useGuildState, useNow } from "../common";
 import { imageToDataUrl } from "../image";
 import { ART_ROLES, Portrait, type ArtSlot } from "../Portrait";
 
@@ -62,21 +62,6 @@ interface Props {
   now: number;
 }
 
-function Sheet({ title, children, onClose }: { title: string; children: ReactNode; onClose(): void }) {
-  return (
-    <div className="sheet-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <h2>{title}</h2>
-          <button type="button" className="mini" onClick={onClose}>
-            閉じる
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
 
 // ---- 承認 ----
 
@@ -92,7 +77,13 @@ function Check({ store, state, me, now }: Props) {
     fb.run(
       store,
       (s) => approve(s, e.id, me, Date.now()),
-      e.kind === "shop" ? `${name(e.profileId)}に「${e.title}」を渡しました` : `${name(e.profileId)}に ${e.value} G を付与しました`,
+      e.kind === "shop"
+        ? `${name(e.profileId)}に「${e.title}」を渡しました`
+        : e.kind === "vaultShop"
+          ? `パーティ金庫から「${e.title}」を交換しました`
+          : e.kind === "deposit"
+            ? `${name(e.profileId)}の ${e.value} G を金庫に入れました`
+            : `${name(e.profileId)}に ${e.value} G を付与しました`,
       e.kind !== "shop"
     );
 
@@ -116,7 +107,15 @@ function Check({ store, state, me, now }: Props) {
         {list.map((e) => {
           const kid = state.profiles.find((p) => p.id === e.profileId);
           if (!kid) return null;
-          const kind = e.kind === "shop" ? "ごほうびの交換申請" : e.kind === "urgent" ? "緊急クエストの達成報告" : "クエストの達成報告";
+          const kind = {
+            shop: "ごほうびの交換申請",
+            vaultShop: "パーティ金庫での交換申請（みんなのごほうび）",
+            deposit: "パーティ金庫への貯金（戻せません）",
+            urgent: "緊急クエストの達成報告",
+            quest: "クエストの達成報告",
+            bonus: "ボーナス"
+          }[e.kind];
+          const isExchange = e.kind === "shop" || e.kind === "vaultShop";
           return (
             <div className="approve" key={e.id}>
               <div className="head">
@@ -126,7 +125,7 @@ function Check({ store, state, me, now }: Props) {
                     {kid.name}：{e.title}
                   </div>
                   <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>
-                    {kind}・{timeLabel(e.createdAt, now)}・{e.kind === "shop" ? "−" : "+"}
+                    {kind}・{timeLabel(e.createdAt, now)}・{isExchange || e.kind === "deposit" ? "−" : "+"}
                     {e.value} G
                   </div>
                 </div>
@@ -136,13 +135,13 @@ function Check({ store, state, me, now }: Props) {
                   className="btn btn-ghost"
                   onClick={() => {
                     setBack(e);
-                    setComment(e.kind === "shop" ? "今回は見送り" : "");
+                    setComment(isExchange ? "今回は見送り" : "");
                   }}
                 >
-                  {e.kind === "shop" ? "キャンセル" : "差し戻す"}
+                  {isExchange ? "キャンセル" : "差し戻す"}
                 </button>
                 <button className="btn btn-gold" onClick={() => ok(e)}>
-                  {e.kind === "shop" ? "渡した" : "承認する"}
+                  {isExchange ? "渡した" : "承認する"}
                 </button>
               </div>
             </div>
@@ -151,7 +150,7 @@ function Check({ store, state, me, now }: Props) {
         {list.length === 0 && <Empty>承認待ちはありません。冒険者たちの報告を待ちましょう。</Empty>}
       </div>
       {back && (
-        <Sheet title={back.kind === "shop" ? "交換をキャンセル" : "差し戻す"} onClose={() => setBack(null)}>
+        <Sheet title={(back.kind === "shop" || back.kind === "vaultShop") ? "交換をキャンセル" : "差し戻す"} onClose={() => setBack(null)}>
           <div className="form">
             <label htmlFor="back-comment">
               {name(back.profileId)}へのひと言（なくてもOK）
@@ -172,11 +171,11 @@ function Check({ store, state, me, now }: Props) {
                 await fb.run(
                   store,
                   (s) => sendBack(s, e.id, me, comment, Date.now()),
-                  e.kind === "shop" ? "申請をキャンセルし、G を戻しました" : "ひと言を添えて差し戻しました"
+                  (e.kind === "shop" || e.kind === "vaultShop") ? "申請をキャンセルしました" : "ひと言を添えて差し戻しました"
                 );
               }}
             >
-              {back.kind === "shop" ? "キャンセルする" : "差し戻す"}
+              {(back.kind === "shop" || back.kind === "vaultShop") ? "キャンセルする" : "差し戻す"}
             </button>
           </div>
         </Sheet>
@@ -217,6 +216,7 @@ function Kids({ store, state, me, now, extra }: Props & { extra?: ReactNode }) {
           </div>
         ))}
       </div>
+      <VaultPanel state={state} now={now} />
       {extra}
       <Section title="最近の記録" aside={`${recent.length} 件`} />
       <div className="list">
@@ -250,7 +250,13 @@ function Kids({ store, state, me, now, extra }: Props & { extra?: ReactNode }) {
           <div className="form">
             <span style={{ fontSize: 14 }}>
               {nameOf(undo.profileId)}の「{undo.title}」を取り消します。
-              {undo.kind === "shop" ? `払った ${undo.value} G が戻ります。` : `付けた ${undo.value} G が減ります。`}
+              {undo.kind === "shop"
+                ? `払った ${undo.value} G が戻ります。`
+                : undo.kind === "deposit"
+                  ? `金庫から ${undo.value} G を本人に戻します。`
+                  : undo.kind === "vaultShop"
+                    ? `金庫に ${undo.value} G が戻ります。`
+                    : `付けた ${undo.value} G が減ります。`}
             </span>
             <label htmlFor="undo-reason">
               理由（子どもの記録に残ります・なくてもOK）
@@ -264,7 +270,7 @@ function Kids({ store, state, me, now, extra }: Props & { extra?: ReactNode }) {
                 await fb.run(
                   store,
                   (s) => revoke(s, e.id, me, undoReason, Date.now()),
-                  e.kind === "shop" ? `${e.value} G を${nameOf(e.profileId)}に戻しました` : `${nameOf(e.profileId)}の ${e.value} G を取り消しました`
+                  e.kind === "shop" || e.kind === "deposit" ? `${e.value} G を${nameOf(e.profileId)}に戻しました` : e.kind === "vaultShop" ? `${e.value} G を金庫に戻しました` : `${nameOf(e.profileId)}の ${e.value} G を取り消しました`
                 );
               }}
             >
@@ -416,6 +422,7 @@ function Settings({ store, state, me, extra }: Props & { extra?: ReactNode }) {
             <div className="grow">
               <div className="t">{r.title}</div>
               <div className="s">
+                {r.shared ? "みんなの・" : ""}
                 {r.price} G・{r.weeklyLimit === null ? "上限なし" : `週${r.weeklyLimit}回まで`}・{r.note}
               </div>
             </div>
@@ -549,6 +556,10 @@ function RewardForm({ reward, onSave }: { reward: Reward; onSave(r: Reward): voi
           </select>
         </label>
       </div>
+      <label className="check">
+        <input type="checkbox" checked={!!r.shared} onChange={(e) => setR({ ...r, shared: e.target.checked })} />
+        みんなのごほうび（3人のパーティ金庫からだけ交換できる）
+      </label>
       <label htmlFor="r-note">
         ひと言メモ（子どもに表示）
         <input id="r-note" value={r.note} maxLength={20} onChange={(e) => setR({ ...r, note: e.target.value })} placeholder="例：現金で受け取り" />

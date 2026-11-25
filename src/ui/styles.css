@@ -236,3 +236,28 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 /* 承認した人 */
 .approver{grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--brass);margin-top:2px}
 .approver img{width:20px;height:20px;border-radius:50%;object-fit:cover;object-position:50% 20%;border:1px solid var(--brass-dim)}
+
+/* ---- パーティ金庫（3人の共同貯金） ---- */
+.vault{position:relative;border-radius:16px;padding:16px;display:grid;gap:10px;border:1px solid var(--brass);
+  background:radial-gradient(120% 90% at 100% 0%,rgba(224,179,84,.22),transparent 60%),linear-gradient(160deg,#2a2346,#1a1f3a)}
+.vault-head{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.vault .label{font-size:10px;letter-spacing:.24em;color:var(--brass)}
+.vault h2{margin:0;font-family:var(--display);font-weight:400;font-size:20px}
+.vault .sub{font-size:11px;color:var(--ink-dim)}
+.vault-gold{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
+.vault-gold b{font-family:var(--display);font-weight:400;font-size:32px;color:var(--brass);line-height:1;font-variant-numeric:tabular-nums}
+.vault-gold span{color:var(--ink-dim);font-size:13px}
+.vault-note{font-size:12px;color:var(--wait)}
+.vault-bar{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--wall);align-items:center}
+.vault-bar i{display:block;height:100%;transition:width .5s}
+.vault-bar span{font-size:11px;color:var(--ink-dim);padding:0 8px;line-height:12px}
+.vault-who{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.vault-who li{display:grid;justify-items:center;gap:2px;background:rgba(0,0,0,.2);border-radius:10px;padding:8px 4px;font-size:12px}
+.vault-who b{font-family:var(--display);font-weight:400;color:var(--brass);font-size:14px}
+.vault-log summary{cursor:pointer;font-size:12px;color:var(--ink-dim)}
+.vault-log .list{margin-top:8px}
+.item-shared{border:2px solid var(--brass);box-shadow:0 0 0 3px rgba(224,179,84,.15)}
+.warn{font-size:12px;line-height:1.6;background:rgba(255,107,90,.12);border:1px solid rgba(255,107,90,.5);color:#ffd0c8;border-radius:10px;padding:8px 10px}
+.check{display:flex !important;align-items:center;gap:8px;font-size:13px}
+.form .check input{width:20px;height:20px;min-height:0;padding:0;flex:0 0 auto;accent-color:var(--brass)}
+@media (prefers-reduced-motion:reduce){.vault-bar i{transition:none}}
